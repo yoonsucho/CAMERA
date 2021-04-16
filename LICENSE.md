@@ -1,6 +1,6 @@
 # MIT License
 
-Copyright (c) 2021 Yoonsu Cho
+Copyright (c) 2021 MR.TRAM authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

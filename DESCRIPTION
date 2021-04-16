@@ -13,9 +13,9 @@ RoxygenNote: 7.1.1
 Suggests: 
     knitr,
     rmarkdown,
-    testthat
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
-Imports:ieugwasr,
+Imports: ieugwasr,
         gwasglue,
         TwoSampleMR,
         susieR,
@@ -23,3 +23,4 @@ Imports:ieugwasr,
         dplyr,
         winnerscurse,
         magrittr
+Config/testthat/edition: 3

@@ -53,6 +53,6 @@ x$plot_regional_instruments(instruments=x$instrument_maxz)
 x$estimate_instrument_specificity(x$instrument_maxz)
 
 # obtain LD matrices
-x$regional_ld_matrices()
+#x$regional_ld_matrices()
 ```
 
