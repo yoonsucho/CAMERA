@@ -17,6 +17,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_maxz = NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
+  instrument_outcome = NULL,
 
   # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
   import = function(x) {
@@ -167,12 +168,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
           dplyr::select(discovery, replication, dplyr::everything())
         return(o)
       })
-      overall <- lapply(o, function(x) { x$res }) %>% bind_rows()
-      pervariant <- lapply(o, function(x) { x$variants }) %>% bind_rows()
+      overall <- lapply(o, function(x) { x$res }) %>% dplyr::bind_rows()
+      pervariant <- lapply(o, function(x) { x$variants }) %>% dplyr::bind_rows()
       return(list(overall=overall, pervariant=pervariant))
     })
-    self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>% bind_rows()
-    self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% bind_rows()
+    self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
+    self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% dplyr::bind_rows()
     return(self$instrument_specificity_summary)
   },
 
@@ -295,7 +296,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         }
         if(any(flip_index))
         {
-          print("Flipping ", sum(flip_index))
+          message("Flipping ", sum(flip_index))
           ld[flip_index, ] <- ld[flip_index, ] * -1
           ld[, flip_index] <- ld[, flip_index] * -1
         }
@@ -335,7 +336,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - maximised associations from extract_instrument_regions
   # - finemapped hits from susie_finemap_regions
   # - finemapped hits from paintor_finemap_regions
-  extract_outcome_data = function() {},
+  extract_outcome_data = function(snps=NULL, outcome_ids=self$outcome_ids) {
+    self$instrument_outcome <- lapply(1:length(outcome_ids), function(i){
+                                    TwoSampleMR::extract_outcome_data(snps=unique(snps), outcomes=outcome_ids[i])
+                                    })
+    return(self$instrument_outcome) 
+    invisible(self)
+  },
 
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
   perform_basic_sem = function() {}
