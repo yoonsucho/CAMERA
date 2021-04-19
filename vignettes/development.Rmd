@@ -25,7 +25,7 @@ load_all()
 # These exposures are for CRP
 # Outcomes are CHD (but should consider choosing other outcomes for EAS and AFR, or find other traits)
 x <- MultiAncestrySummarySet$new(
-	exposure_ids=c("ukb-e-30710_EAS", "ukb-e-30710_AFR"), 
+	exposure_ids=c("ieu-b-35", "ukb-e-30710_EAS"), 
 	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
 	bfiles=c("/Users/gh13047/data/ld_files/ldmat/EAS", "/Users/gh13047/data/ld_files/ldmat/AFR"), 
 	plink = genetics.binaRies::get_plink_binary(), 
