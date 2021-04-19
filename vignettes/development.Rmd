@@ -54,5 +54,9 @@ x$estimate_instrument_specificity(x$instrument_maxz)
 
 # obtain LD matrices
 #x$regional_ld_matrices()
+
+# Get outcome data for a particular set of instruments
+x$extract_outcome_data(snps=x$instrument_raw, outcome_ids=x$outcome_ids)
+
 ```
 
