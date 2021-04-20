@@ -18,6 +18,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
+  sem_result = NULL,
 
   # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
   import = function(x) {
@@ -280,12 +281,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
 
     regions <- names(instrument_regions)
-    self$ld_matrices <- lapply(regions, function(r)
+    ld_matrices <- lapply(regions, function(r)
     {
-      d <- instrument_regions[[r]]
+      d <- instrument_regions[[1]]
       o <- lapply(1:length(self$exposure_ids), function(i)
       {
-        ld <- ieugwasr::ld_matrix(d[[self$exposure_ids[i]]]$rsid, pop=self$pops[i], bfile=self$bfiles[i], plink=self$plink, with_alleles=TRUE)
+        ld <- ieugwasr::ld_matrix(d[[self$exposure_ids[1]]]$rsid, pop=self$pops[1], bfile=self$bfiles[1], plink=self$plink, with_alleles=TRUE)
         code1 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
         code2 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
         rem_index <- ! (code1 %in% colnames(ld) | code2 %in% colnames(ld))
@@ -316,8 +317,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       })
       return(o)
     })
-    names(self$ld_matrices) <- regions
+    names(ld_matrices) <- regions
+    self$ld_matrices <- ld_matrices
+    invisible(self)
   },
+
 
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
@@ -337,15 +341,87 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - finemapped hits from susie_finemap_regions
   # - finemapped hits from paintor_finemap_regions
   extract_outcome_data = function(snps=NULL, outcome_ids=self$outcome_ids) {
-    self$instrument_outcome <- lapply(1:length(outcome_ids), function(i){
+    instrument_outcome <- lapply(1:length(outcome_ids), function(i){
                                     TwoSampleMR::extract_outcome_data(snps=unique(snps), outcomes=outcome_ids[i])
                                     })
-    return(self$instrument_outcome) 
+    self$instrument_outcome <- instrument_outcome
     invisible(self)
   },
 
+  # Generate harmonised dataset
+
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
-  perform_basic_sem = function() {}
+  perform_basic_sem = function(snp_exposure=self$instrument_raw, snp_outcome=self$instrument_outcome, p_exp=1, p_out=1) {
+    exp <- split(snp_exposure, f = snp_exposure$id)
+    temp <-lapply(1:length(exp), function(i){
+                  exp[[i]]$SNP <- exp[[i]]$rsid
+                  merge(exp[[i]], snp_outcome[[i]], by="SNP")
+                  })
+    index <- lapply(1:length(temp), function(j){
+                    temp[[j]]$p<p_exp & temp[[j]]$pval.outcome<p_out
+                    })
+    temp <- lapply(1:length(temp), function(k){
+                    temp[[k]][index[[k]],]
+                    })
+    miss <- temp[[1]][!(temp[[1]]$rsid %in% temp[[2]]$rsid),]
+    message(paste0("SNP ", miss$rsid, " does not exist in population 2"))
+
+    d1 <- temp[[1]] %>%
+              dplyr::mutate(x1 = beta) %>%
+              dplyr::mutate(y1 = beta.outcome) %>%
+              dplyr::mutate(xse1 = se) %>%
+              dplyr::mutate(yse1 = se.outcome) %>%
+              dplyr::select(SNP, x1, y1, xse1, yse1)
+
+    d2 <- temp[[2]] %>%
+              dplyr::mutate(x2 = beta) %>%
+              dplyr::mutate(y2 = beta.outcome) %>%
+              dplyr::mutate(xse2 = se) %>%
+              dplyr::mutate(yse2 = se.outcome) %>%
+              dplyr::select(SNP, x2, y2, xse2, yse2)
+
+    d <- merge(d1, d2, by = "SNP") %>%
+         dplyr::mutate(r1 = y1/x1) %>%
+         dplyr::mutate(r2 = y2/x2) %>%
+         dplyr::mutate(w1 = sqrt(x1^2 / yse1^2)) %>%
+         dplyr::mutate(w2 = sqrt(x2^2 / yse2^2)) %>%
+         dplyr::mutate(o1 = r1 * w1) %>%
+         dplyr::mutate(o2 = r2 * w2)
+
+    model1 <- '
+    y1 ~ biv*x1
+    y2 ~ biv*x2
+    '
+    mod1 <- lavaan::sem(model1, data=d)
+
+    model2 <- '
+    y1 ~ biv_1*x1
+    y2 ~ biv_2*x2
+    '
+    mod2 <- lavaan::sem(model2, data=d)
+    out <- list()
+    invisible(capture.output(s1 <- lavaan::summary(mod1, fit.measures=TRUE)))
+    invisible(capture.output(s2 <- lavaan::summary(mod2, fit.measures=TRUE)))
+    mod1 <- s1$FIT['aic']
+    mod2 <- s2$FIT['aic']
+    out$aic1 <- s1$FIT['aic']
+    out$aic2 <- s2$FIT['aic']
+    out$aic_diff <- mod1 - mod2
+  
+    out$mod1_eff1 <- s1$PE$est[1]
+    out$mod1_eff2 <- s1$PE$est[2]
+    out$mod2_eff1 <- s2$PE$est[1]
+    out$mod2_eff2 <- s2$PE$est[2]
+  
+    out$mod1_pval1 <- s1$PE$pvalue[1]
+    out$mod1_pval2 <- s1$PE$pvalue[2]
+    out$mod2_pval1 <- s2$PE$pvalue[1]
+    out$mod2_pval2 <- s2$PE$pvalue[2]
+
+    return(as_tibble(out))
+    self$sem_result <- out
+    invisible(self)
+  }
 
 
   # Plots
