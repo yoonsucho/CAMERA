@@ -1,3 +1,10 @@
+#' R6 class for MR.TRAM
+#'
+#' @description
+#' A simple wrapper function.
+#' Using a summary set, identify set of instruments for the traits, and peform SEM MR to test the association across the population.
+#' @export
+
 MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   output = list(),
   exposure_ids=NULL,
@@ -20,7 +27,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_outcome = NULL,
   sem_result = NULL,
 
-  # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
+# for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
+#' @description
+#' Migrate the results from a previous MultiAncestrySummarySet
   import = function(x) {
     nom <- names(self)
     for(i in nom)
@@ -32,8 +41,17 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
   },
 
-  # Methods
-
+# Methods
+#' @description
+#' Create a new dataset and initialise an R interface
+#' @param exposure_ids ID for exposure
+#' @param outcome_ids ID for outcome
+#' @param pops Ancestry information
+#' @param bfiles location of LD reference file
+#' @param plink location of plink 1.90
+#' @param radius insert
+#' @param clump_pop insert
+#' @param x insert
   initialize = function(exposure_ids=NULL, outcome_ids=NULL, pops=NULL, bfiles=NULL, plink=NULL, radius=NULL, clump_pop=NULL, x=NULL)
   {
     if(!is.null(x))
@@ -53,6 +71,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - for each exposure_id it identifies the instruments
   # - then it tries to make these independent
   # - then looks up the same set of instruments in all exposures
+#' @description
+#'  Identifies the instruments for the exposure
+#' @param exposure_ids ID for exposure
+
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
     # Use MVMR method to do the initial extraction
@@ -82,6 +104,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # Hence, in pop1 it is in LD with the causal variant but not in pop2
   # So we extract a region around each instrument (e.g. 50kb)
   # Search for a SNP that is best associated in both pop1 and pop2
+#' @description
+#' Extract a region around extracted instrument
+#' @param radius insert
+#' @param instrument_raw insert
+#' @param exposure_ids ID for exposure
   extract_instrument_regions = function(radius=self$radius, instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids)
   {
     # return a list of lists e.g.
@@ -143,6 +170,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - what fraction of those primarily identified in pop1 have the same sign as in pop2?
   # - compare these to what is expected by chance under the hypothesis that the effect estimates are the same
   # this will provide some evidence for whether lack of replication is due to (e.g.) GxE
+#' @description
+#' Calculate what is expected by chance under the hypothesis that the effect estimates are the same
+#' @param instrument insert
+#' @param alpha insert
+
   estimate_instrument_specificity = function(instrument, alpha="bonferroni")
   {
     if(alpha=="bonferroni")
@@ -181,7 +213,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     return(self$instrument_specificity_summary)
   },
 
-
+#' @description
+#' insert
+#' @param b_disc insert
+#' @param b_rep insert
+#' @param se_disc insert
+#' @param se_rep insert
+#' @param alpha insert
   prop_overlap = function(b_disc, b_rep, se_disc, se_rep, alpha)
   {
     p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
@@ -197,7 +235,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-
+#' @description
+#' insert
+#' @param instrument_raw insert
+#' @param instrument_regions insert
   scan_regional_instruments = function(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions)
   {
     # Simple method to choose the best SNP in the region by
@@ -247,7 +288,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
   },
 
-
+#' @description
+#' insert
+#' @param region insert
+#' @param instrument_region_zscores insert
+#' @param instruments insert
   plot_regional_instruments = function(region=1:min(10, nrow(instruments)), instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw)
   {
     a <- instrument_region_zscores[region]
@@ -271,6 +316,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # to build on extract_instrument_regions we can do finemapping
   # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
   # We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
+#' @description
+#' insert
+#' @param instrument_regions insert
+#' @param bfiles insert
+#' @param pops insert
+#' @param plink insert
   regional_ld_matrices = function(instrument_regions=self$instrument_regions, bfiles=self$bfiles, pops=self$pops, plink=self$plink)
   {
 
@@ -343,6 +394,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - maximised associations from extract_instrument_regions
   # - finemapped hits from susie_finemap_regions
   # - finemapped hits from paintor_finemap_regions
+#' @description
+#' insert
+#' @param snps insert
+#' @param outcome_ids insert
   extract_outcome_data = function(snps=NULL, outcome_ids=self$outcome_ids) {
     instrument_outcome <- lapply(1:length(outcome_ids), function(i){
                                     TwoSampleMR::extract_outcome_data(snps=unique(snps), outcomes=outcome_ids[i])
@@ -354,6 +409,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # Generate harmonised dataset
 
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
+#' @description
+#' insert
+#' @param snp_exposure insert
+#' @param snp_outcome inset
+#' @param p_exp insert
+#' @param p_out insert
   perform_basic_sem = function(snp_exposure=self$instrument_raw, snp_outcome=self$instrument_outcome, p_exp=1, p_out=1) {
     exp <- split(snp_exposure, f = snp_exposure$id)
     temp <-lapply(1:length(exp), function(i){
