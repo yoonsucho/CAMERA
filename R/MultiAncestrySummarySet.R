@@ -58,22 +58,24 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     # Use MVMR method to do the initial extraction
     # It gets the tophits in each exposure
     # Then randomly chooses one SNP per region to keep using clumping
-    self$instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...)
+    instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...)
 
     # Add chromosome and position
-    self$instrument_raw <- ieugwasr::variants_rsid(unique(self$instrument_raw$SNP)) %>%
+    instrument_raw <- ieugwasr::variants_rsid(unique(instrument_raw$SNP)) %>%
       dplyr::select(SNP=query, chr, position=pos) %>%
-      dplyr::inner_join(., self$instrument_raw, by="SNP") %>%
+      dplyr::inner_join(., instrument_raw, by="SNP") %>%
       dplyr::arrange(id.exposure, chr, position)
 
     # Arrange to be in order of exposure_ids
     # Rename columns
-    self$instrument_raw <- lapply(self$exposure_ids, function(id) {
-      subset(self$instrument_raw, id.exposure==id)
+    instrument_raw <- lapply(self$exposure_ids, function(id) {
+      subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
       dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure)
-    self$instrument_raw %>% as.data.frame
+    instrument_raw %>% as.data.frame
+    self$instrument_raw <- instrument_raw
+    invisible(self)
   },
 
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
@@ -419,7 +421,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$mod2_pval1 <- s2$PE$pvalue[1]
     out$mod2_pval2 <- s2$PE$pvalue[2]
 
-    return(tidyverse::as_tibble(out))
+    return(tibble::as_tibble(out))
     self$sem_result <- out
     invisible(self)
   }
