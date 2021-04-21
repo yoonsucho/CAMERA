@@ -73,6 +73,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }) %>%
       dplyr::bind_rows() %>%
       dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure)
+    self$instrument_raw %>% as.data.frame
   },
 
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
@@ -418,7 +419,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$mod2_pval1 <- s2$PE$pvalue[1]
     out$mod2_pval2 <- s2$PE$pvalue[2]
 
-    return(as_tibble(out))
+    return(tidyverse::as_tibble(out))
     self$sem_result <- out
     invisible(self)
   }

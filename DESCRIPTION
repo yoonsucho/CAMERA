@@ -22,5 +22,6 @@ Imports: ieugwasr,
         ggplot2,
         dplyr,
         winnerscurse,
+	tidyverse,
         magrittr
 Config/testthat/edition: 3
