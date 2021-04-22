@@ -10,40 +10,66 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  cache = TRUE
 )
 ```
 
-```{r setup}
-library(devtools)
-library(dplyr)
-load_all()
+The following analyses should run within a couple of minutes, depending on internet speed and the traffic that the [IEU GWAS database](https://gwas.mrcieu.ac.uk/) servers are experiencing.Begin by choosing an exposure and outcome hypothesis that can be tested in populations of interest. e.g. body mass index and coronary heart disease in European ancestry and East Asian ancestry.These data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. Plink (ver.1.90) and LD reference data is also required to identify instrument that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
 
-# Download LD reference data from:
-# http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz
-# Need to specify path to plink executable also
-# These exposures are for CRP
-# Outcomes are CHD (but should consider choosing other outcomes for EAS and AFR, or find other traits)
+
+## Data setup
+
+To install MR-TRAM:
+
+```r
+install.packages("devtools")
+devtools::install_github("universe77/MR.TRAM")
+```
+
+Open R6 class environment to run MR-TRAM. Here, the exposures and the outcomes should be same across the ancestries. 
+
+```{r setup}
+library(MR.TRAM)
+
+# Need to specify path to plink and LD reference data here.
+# Following exposures and outcome will be used: Exposures: CRP (EUR-EAS); Outcomes: CHD (EUR-EAS)
 x <- MultiAncestrySummarySet$new(
 	exposure_ids=c("ieu-b-35", "ukb-e-30710_EAS"), 
 	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
 	bfiles=c("/Users/gh13047/data/ld_files/ldmat/EAS", "/Users/gh13047/data/ld_files/ldmat/AFR"), 
 	plink = genetics.binaRies::get_plink_binary(), 
 	radius=50000, 
-	clump_pop="AFR"
+	clump_pop="ASN"
 )
+```
 
-# Extract instruments for each exposure, harmonise etc
+## Running MR.TRAM
+
+We can now perform the analysis:
+
+This will do the following:
+
+1. Extract instruments for the exposures
+2. Identify where the instruments are located (region information)
+3. Extract instruments again from the identified region based on magnitude of instrument-exposure association
+4. Extract instruments for the outcomes
+5. Perform MR using genomic structural equation model
+
+
+## Step by step analysis 
+See the `?Tryx` for options on the parameters for this analysis. 
+```{r}
+# Extract instruments for each exposure
 x$extract_instruments()
-x$instrument_raw %>% as.data.frame
 
-# Estimate what fraction of the raw instruments we'd expect to replicate
+# Estimate what fraction of the instruments (raw instrument) we'd expect to replicate across the ancestries
 x$estimate_instrument_specificity(x$instrument_raw)
 
-# Get regions around each instrument
+# Identify regions that include the instruments
 x$extract_instrument_regions()
 
-# Find region-selected instruments by searching across region for best associations
+# Extract instrument from identified region by searching across region for best associations
 x$scan_regional_instruments()
 
 # Plot regions and their region-selected instruments
@@ -57,11 +83,10 @@ x$estimate_instrument_specificity(x$instrument_maxz)
 
 # Get outcome data for a particular set of instruments
 x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
+x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
 
 # Run SEM model
 x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 
-
 ```
-
