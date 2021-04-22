@@ -463,28 +463,54 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     y2 ~ biv_2*x2
     '
     mod2 <- lavaan::sem(model2, data=d)
-    out <- list()
-    invisible(capture.output(s1 <- lavaan::summary(mod1, fit.measures=TRUE)))
-    invisible(capture.output(s2 <- lavaan::summary(mod2, fit.measures=TRUE)))
-    mod1 <- s1$FIT['aic']
-    mod2 <- s2$FIT['aic']
-    out$aic1 <- s1$FIT['aic']
-    out$aic2 <- s2$FIT['aic']
-    out$aic_diff <- mod1 - mod2
-  
-    out$mod1_eff1 <- s1$PE$est[1]
-    out$mod1_eff2 <- s1$PE$est[2]
-    out$mod2_eff1 <- s2$PE$est[1]
-    out$mod2_eff2 <- s2$PE$est[2]
-  
-    out$mod1_pval1 <- s1$PE$pvalue[1]
-    out$mod1_pval2 <- s1$PE$pvalue[2]
-    out$mod2_pval1 <- s2$PE$pvalue[1]
-    out$mod2_pval2 <- s2$PE$pvalue[2]
 
-    return(tibble::as_tibble(out))
-    self$sem_result <- out
-    invisible(self)
+    model3 <- '
+    o1 ~ biv*w1
+    o2 ~ biv*w2
+    '
+    mod3 <- lavaan::sem(model3, data=d)
+    
+    model4 <- '
+    o1 ~ biv_1*w1
+    o2 ~ biv_2*w2
+    '
+    mod4 <- lavaan::sem(model4, data=d)
+
+    sumtable <- function(mod1=NULL, mod2=NULL, model=NULL){
+              out <- list()
+              invisible(capture.output(s1 <- lavaan::summary(mod1, fit.measures=TRUE)))
+              invisible(capture.output(s2 <- lavaan::summary(mod2, fit.measures=TRUE)))
+
+              mod1 <- s1$FIT['aic']
+              mod2 <- s2$FIT['aic']
+
+              out$model <- model
+              out$aic1 <- s1$FIT['aic']
+              out$aic2 <- s2$FIT['aic']
+              out$aic_diff <- mod1 - mod2
+            
+              out$mod1_eff1 <- s1$PE$est[1]
+              out$mod1_eff2 <- s1$PE$est[2]
+              out$mod2_eff1 <- s2$PE$est[1]
+              out$mod2_eff2 <- s2$PE$est[2]
+
+              out$mod1_se1 <- s1$PE$se[1]
+              out$mod1_se2 <- s1$PE$se[2]
+              out$mod2_se1 <- s2$PE$se[1]
+              out$mod2_se2 <- s2$PE$se[2]
+            
+              out$mod1_pval1 <- s1$PE$pvalue[1]
+              out$mod1_pval2 <- s1$PE$pvalue[2]
+              out$mod2_pval1 <- s2$PE$pvalue[1]
+              out$mod2_pval2 <- s2$PE$pvalue[2]
+
+              return(tibble::as_tibble(out))
+            }
+
+    a <- sumtable(mod1=mod1, mod2=mod2, model=c("IVW")) 
+    b <- sumtable(mod1=mod3, mod2=mod4, model=c("Radial"))
+    self$sem_result <- rbind(a, b) %>% as.data.frame
+    print(self$sem_result)
   }
 
 
