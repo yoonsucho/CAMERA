@@ -14,6 +14,7 @@ knitr::opts_chunk$set(
 )
 ```
 
+# Exposures: CRP (EUR-EAS); Outcomes: CHD (EUR-EAS)
 ```{r setup}
 library(devtools)
 library(dplyr)
@@ -22,8 +23,6 @@ load_all()
 # Download LD reference data from:
 # http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz
 # Need to specify path to plink executable also
-# These exposures are for CRP
-# Outcomes are CHD (but should consider choosing other outcomes for EAS and AFR, or find other traits)
 x <- MultiAncestrySummarySet$new(
 	exposure_ids=c("ieu-b-35", "ukb-e-30710_EAS"), 
 	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
@@ -35,7 +34,6 @@ x <- MultiAncestrySummarySet$new(
 
 # Extract instruments for each exposure, harmonise etc
 x$extract_instruments()
-x$instrument_raw %>% as.data.frame
 
 # Estimate what fraction of the raw instruments we'd expect to replicate
 x$estimate_instrument_specificity(x$instrument_raw)
@@ -57,11 +55,88 @@ x$estimate_instrument_specificity(x$instrument_maxz)
 
 # Get outcome data for a particular set of instruments
 x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
+x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
 
 # Run SEM model
 x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 
+```
+
+
+# Exposures: BMI (EUR-EAS); Outcomes: CHD (EUR-EAS)
+```
+x <- MultiAncestrySummarySet$new(
+	exposure_ids=c("ieu-a-2", "bbj-a-1"), 
+	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+	bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+	plink=plink, 
+	radius=50000, 
+	clump_pop="EAS"
+)
+x$extract_instruments()
+x$estimate_instrument_specificity(x$instrument_raw)
+x$extract_instrument_regions()
+x$scan_regional_instruments()
+x$plot_regional_instruments(instruments=x$instrument_maxz)
+x$estimate_instrument_specificity(x$instrument_maxz)
+x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
+x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
+
+# Run SEM model
+x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 
 ```
 
+
+# Exposures: Urate (EUR-EAS); Outcomes: CHD (EUR-EAS)
+```
+x <- MultiAncestrySummarySet$new(
+	exposure_ids=c("ieu-a-1055", "ukb-e-30880_EAS"), 
+	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+	bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+	plink=plink, 
+	radius=50000, 
+	clump_pop="EAS"
+)
+x$extract_instruments()
+x$estimate_instrument_specificity(x$instrument_raw)
+x$extract_instrument_regions()
+x$scan_regional_instruments()
+x$plot_regional_instruments(instruments=x$instrument_maxz)
+x$estimate_instrument_specificity(x$instrument_maxz)
+x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
+x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
+
+# Run SEM model
+x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+
+```
+
+
+# Exposures: SBP (EUR-EAS); Outcomes: CHD (EUR-EAS)
+```
+x <- MultiAncestrySummarySet$new(
+	exposure_ids=c("ieu-b-38", "ukb-e-4080_EAS"), 
+	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+	bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+	plink=plink, 
+	radius=50000, 
+	clump_pop="EAS"
+)
+x$extract_instruments()
+x$estimate_instrument_specificity(x$instrument_raw)
+x$extract_instrument_regions()
+x$scan_regional_instruments()
+x$plot_regional_instruments(instruments=x$instrument_maxz)
+x$estimate_instrument_specificity(x$instrument_maxz)
+x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
+x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
+
+# Run SEM model
+x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+
+```
