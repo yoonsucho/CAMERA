@@ -58,7 +58,7 @@ This will do the following:
 
 
 ## Step by step analysis 
-See the `?Tryx` for options on the parameters for this analysis. 
+See the `?MR.TRAM` for options on the parameters for this analysis. 
 ```{r}
 # Extract instruments for each exposure
 x$extract_instruments()
@@ -88,5 +88,5 @@ x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
 # Run SEM model
 x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
 x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
-
 ```
+
