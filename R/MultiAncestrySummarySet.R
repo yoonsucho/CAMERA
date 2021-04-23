@@ -25,6 +25,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
+  harmonised_dat = NULL,
   sem_result = NULL,
 
 # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
@@ -398,11 +399,28 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' insert
 #' @param snps insert
 #' @param outcome_ids insert
-  extract_outcome_data = function(snps=NULL, outcome_ids=self$outcome_ids) {
-    instrument_outcome <- lapply(1:length(outcome_ids), function(i){
-                                    TwoSampleMR::extract_outcome_data(snps=unique(snps), outcomes=outcome_ids[i])
-                                    })
-    self$instrument_outcome <- instrument_outcome
+  extract_outcome_data = function(exp=self$instrument_raw, p_exp=0.005) {
+    exp <- exp %>% as.data.frame
+    dx <- inner_join(
+      subset(exp, id == self$exposure_ids[[1]]),
+      subset(exp, id == self$exposure_ids[[2]]),
+      by="rsid"
+    ) %>%
+      dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, p1=p.x, p2=p.y) %>%
+      dplyr::filter(p1 < p_exp & p2 < p_exp)
+    out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
+
+    dy <- inner_join(
+      subset(out, id.outcome == self$outcome_ids[[1]]),
+      subset(out, id.outcome == self$outcome_ids[[2]]),
+      by="SNP"
+      ) %>%
+        dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
+    dat <- inner_join(dx, dy, by="SNP")   
+
+    self$instrument_outcome <- out
+    self$harmonised_dat <- dat
+
     invisible(self)
   },
 
@@ -411,40 +429,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
 #' @description
 #' insert
-#' @param snp_exposure insert
-#' @param snp_outcome inset
+#' @param exp insert
+#' @param out inset
 #' @param p_exp insert
-#' @param p_out insert
-  perform_basic_sem = function(snp_exposure=self$instrument_raw, snp_outcome=self$instrument_outcome, p_exp=1, p_out=1) {
-    exp <- split(snp_exposure, f = snp_exposure$id)
-    temp <-lapply(1:length(exp), function(i){
-                  exp[[i]]$SNP <- exp[[i]]$rsid
-                  merge(exp[[i]], snp_outcome[[i]], by="SNP")
-                  })
-    index <- lapply(1:length(temp), function(j){
-                    temp[[j]]$p<p_exp & temp[[j]]$pval.outcome<p_out
-                    })
-    temp <- lapply(1:length(temp), function(k){
-                    temp[[k]][index[[k]],]
-                    })
-    miss <- temp[[1]][!(temp[[1]]$rsid %in% temp[[2]]$rsid),]
-    message(paste0("SNP ", miss$rsid, " does not exist in population 2"))
-
-    d1 <- temp[[1]] %>%
-              dplyr::mutate(x1 = beta) %>%
-              dplyr::mutate(y1 = beta.outcome) %>%
-              dplyr::mutate(xse1 = se) %>%
-              dplyr::mutate(yse1 = se.outcome) %>%
-              dplyr::select(SNP, x1, y1, xse1, yse1)
-
-    d2 <- temp[[2]] %>%
-              dplyr::mutate(x2 = beta) %>%
-              dplyr::mutate(y2 = beta.outcome) %>%
-              dplyr::mutate(xse2 = se) %>%
-              dplyr::mutate(yse2 = se.outcome) %>%
-              dplyr::select(SNP, x2, y2, xse2, yse2)
-
-    d <- merge(d1, d2, by = "SNP") %>%
+  perform_basic_sem = function(harmonised_dat = self$harmonised_dat) {
+    d <- harmonised_dat %>%
          dplyr::mutate(r1 = y1/x1) %>%
          dplyr::mutate(r2 = y2/x2) %>%
          dplyr::mutate(w1 = sqrt(x1^2 / yse1^2)) %>%
