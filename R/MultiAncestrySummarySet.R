@@ -401,7 +401,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param outcome_ids insert
   extract_outcome_data = function(exp=self$instrument_raw, p_exp=0.005) {
     exp <- exp %>% as.data.frame
-    dx <- inner_join(
+    dx <- dplyr::inner_join(
       subset(exp, id == self$exposure_ids[[1]]),
       subset(exp, id == self$exposure_ids[[2]]),
       by="rsid"
@@ -410,13 +410,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       dplyr::filter(p1 < p_exp & p2 < p_exp)
     out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
 
-    dy <- inner_join(
+    dy <- dplyr::inner_join(
       subset(out, id.outcome == self$outcome_ids[[1]]),
       subset(out, id.outcome == self$outcome_ids[[2]]),
       by="SNP"
       ) %>%
         dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
-    dat <- inner_join(dx, dy, by="SNP")   
+    dat <- dplyr::inner_join(dx, dy, by="SNP")   
 
     self$instrument_outcome <- out
     self$harmonised_dat <- dat
