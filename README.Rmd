@@ -24,7 +24,7 @@ You can install the released / development version of MR.TRAM from github with:
 
 ``` r
 install.packages("devtools")
-devtools::install_github("universe77/MR-TRAM")
+devtools::install_github("universe77/MR.TRAM")
 ```
 
 ## Example

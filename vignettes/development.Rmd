@@ -81,12 +81,15 @@ x$estimate_instrument_specificity(x$instrument_maxz)
 # obtain LD matrices
 #x$regional_ld_matrices()
 
-# Get outcome data for a particular set of instruments
-x$extract_outcome_data(snps=x$instrument_raw$rsid, outcome_ids=x$outcome_ids)
-x$extract_outcome_data(snps=x$instrument_maxz$rsid, outcome_ids=x$outcome_ids)
+# Get outcome data for a particular set of instruments (raw)
+x$extract_outcome_data(exp=x$instrument_raw, p_exp=1)
 
 # Run SEM model
-x$perform_basic_sem(snp_exposure=x$instrument_raw, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
-x$perform_basic_sem(snp_exposure=x$instrument_maxz, snp_outcome=x$instrument_outcome, p_exp=1, p_out=1)
+x$perform_basic_sem(harmonised_dat = x$harmonised_dat)
+
+# Get outcome data for a particular set of instruments and run SEM model (selected)
+x$extract_outcome_data(exp=x$instrument_maxz, p_exp=1)
+x$perform_basic_sem(harmonised_dat = x$harmonised_dat)
+
 ```
 

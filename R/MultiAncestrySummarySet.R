@@ -397,16 +397,16 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - finemapped hits from paintor_finemap_regions
 #' @description
 #' insert
-#' @param snps insert
-#' @param outcome_ids insert
-  extract_outcome_data = function(exp=self$instrument_raw, p_exp=0.005) {
+#' @param exp insert
+#' @param p_exp insert
+ extract_outcome_data = function(exp=self$instrument_raw, p_exp=1) {
     exp <- exp %>% as.data.frame
     dx <- dplyr::inner_join(
       subset(exp, id == self$exposure_ids[[1]]),
       subset(exp, id == self$exposure_ids[[2]]),
       by="rsid"
     ) %>%
-      dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, p1=p.x, p2=p.y) %>%
+      dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y) %>%
       dplyr::filter(p1 < p_exp & p2 < p_exp)
     out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
 
@@ -429,9 +429,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
 #' @description
 #' insert
-#' @param exp insert
-#' @param out inset
-#' @param p_exp insert
+#' @param harmonised_dat insert
   perform_basic_sem = function(harmonised_dat = self$harmonised_dat) {
     d <- harmonised_dat %>%
          dplyr::mutate(r1 = y1/x1) %>%
@@ -441,67 +439,52 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
          dplyr::mutate(o1 = r1 * w1) %>%
          dplyr::mutate(o2 = r2 * w2)
 
-    model1 <- '
-    y1 ~ biv*x1
-    y2 ~ biv*x2
-    '
-    mod1 <- lavaan::sem(model1, data=d)
+    out <- list()
+    out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
+                  {tibble::tibble(model="IVW", pop=1, bivhat=.$b, se=.$se, pval=.$pval)}
+    out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
+                  {tibble::tibble(model="IVW", pop=2, bivhat=.$b, se=.$se, pval=.$pval)}
+    out$rm1 <- summary(lm(o1 ~ -1 + w1, data=d)) %>%
+                  {tibble::tibble(model="RadialIVW", pop=1, bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+    out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
+                  {tibble::tibble(model="RadialIVW", pop=2, bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
-    model2 <- '
-    y1 ~ biv_1*x1
-    y2 ~ biv_2*x2
-    '
-    mod2 <- lavaan::sem(model2, data=d)
+    runsem <- function(model, data, modname)
+        {
+          mod <- lavaan::sem(model, data=data)
+          invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
+          tibble::tibble(
+                model=modname,
+                pop=1:2,
+                bivhat=mod$PE$est[1:2],
+                se=mod$PE$se[1:2],
+                pval=mod$PE$pvalue[1:2],
+                aic=mod$FIT['aic']
+              )
+        }
 
-    model3 <- '
-    o1 ~ biv*w1
-    o2 ~ biv*w2
-    '
-    mod3 <- lavaan::sem(model3, data=d)
+    out$semA <- runsem('
+                       y1 ~ biv*x1
+                       y2 ~ biv*x2
+                       ', d, "UnweightedSEMa")
+    out$semB <- runsem('
+                       y1 ~ biv_1*x1
+                       y2 ~ biv_2*x2
+                       ', d, "UnweightedSEMb")
     
-    model4 <- '
-    o1 ~ biv_1*w1
-    o2 ~ biv_2*w2
-    '
-    mod4 <- lavaan::sem(model4, data=d)
+    out$modC <- runsem('
+                       o1 ~ biv*w1
+                       o2 ~ biv*w2
+                       ', d, "RadialSEMa")
+    
+    out$modD <- runsem('
+                       o1 ~ biv_1*w1
+                       o2 ~ biv_2*w2
+                       ', d, "RadialSEMb")
 
-    sumtable <- function(mod1=NULL, mod2=NULL, model=NULL){
-              out <- list()
-              invisible(capture.output(s1 <- lavaan::summary(mod1, fit.measures=TRUE)))
-              invisible(capture.output(s2 <- lavaan::summary(mod2, fit.measures=TRUE)))
-
-              mod1 <- s1$FIT['aic']
-              mod2 <- s2$FIT['aic']
-
-              out$model <- model
-              out$aic1 <- s1$FIT['aic']
-              out$aic2 <- s2$FIT['aic']
-              out$aic_diff <- mod1 - mod2
-            
-              out$mod1_eff1 <- s1$PE$est[1]
-              out$mod1_eff2 <- s1$PE$est[2]
-              out$mod2_eff1 <- s2$PE$est[1]
-              out$mod2_eff2 <- s2$PE$est[2]
-
-              out$mod1_se1 <- s1$PE$se[1]
-              out$mod1_se2 <- s1$PE$se[2]
-              out$mod2_se1 <- s2$PE$se[1]
-              out$mod2_se2 <- s2$PE$se[2]
-            
-              out$mod1_pval1 <- s1$PE$pvalue[1]
-              out$mod1_pval2 <- s1$PE$pvalue[2]
-              out$mod2_pval1 <- s2$PE$pvalue[1]
-              out$mod2_pval2 <- s2$PE$pvalue[2]
-
-              return(tibble::as_tibble(out))
-            }
-
-    a <- sumtable(mod1=mod1, mod2=mod2, model=c("IVW")) 
-    b <- sumtable(mod1=mod3, mod2=mod4, model=c("Radial"))
-    self$sem_result <- rbind(a, b) %>% as.data.frame
+    invisible(self$sem_result <- out %>% dplyr::bind_rows())
     print(self$sem_result)
   }
-
 
   # Plots
   # Plot regional associations for each instrument and each population
