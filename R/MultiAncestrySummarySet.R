@@ -441,32 +441,34 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     out <- list()
     out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
-                  {tibble::tibble(model="IVW", pop=1, bivhat=.$b, se=.$se, pval=.$pval)}
+                  {tibble::tibble(Methods="IVW", pop="1", bivhat=.$b, se=.$se, pval=.$pval)}
     out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
-                  {tibble::tibble(model="IVW", pop=2, bivhat=.$b, se=.$se, pval=.$pval)}
+                  {tibble::tibble(Methods="IVW", pop="2", bivhat=.$b, se=.$se, pval=.$pval)}
     out$rm1 <- summary(lm(o1 ~ -1 + w1, data=d)) %>%
-                  {tibble::tibble(model="RadialIVW", pop=1, bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+                  {tibble::tibble(Methods="RadialIVW", pop="1", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
     out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
-                  {tibble::tibble(model="RadialIVW", pop=2, bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+                  {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
     runsem <- function(model, data, modname)
         {
           mod <- lavaan::sem(model, data=data)
           invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
           tibble::tibble(
-                model=modname,
+                Methods=modname,
                 pop=1:2,
                 bivhat=mod$PE$est[1:2],
                 se=mod$PE$se[1:2],
                 pval=mod$PE$pvalue[1:2],
                 aic=mod$FIT['aic']
-              )
+              ) %>%  dplyr::mutate(pop = as.character(pop))
         }
 
     out$semA <- runsem('
                        y1 ~ biv*x1
                        y2 ~ biv*x2
-                       ', d, "UnweightedSEMa")
+                       ', d, "UnweightedSEMa")[1, ] %>% 
+                      dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
+
     out$semB <- runsem('
                        y1 ~ biv_1*x1
                        y2 ~ biv_2*x2
@@ -475,7 +477,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$modC <- runsem('
                        o1 ~ biv*w1
                        o2 ~ biv*w2
-                       ', d, "RadialSEMa")
+                       ', d, "RadialSEMa")[1, ] %>% 
+                      dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
     
     out$modD <- runsem('
                        o1 ~ biv_1*w1
