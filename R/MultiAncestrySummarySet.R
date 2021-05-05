@@ -101,6 +101,18 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
+  instrument_check = function(exposure_ids = self$exposure_ids){
+    suppressMessages(d <- TwoSampleMR::make_dat(exposure_ids[1], exposure_ids[2]))
+    suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
+    coef <- mr$b
+    if(coef < 0.6){
+      message("disagreement in instrument associations between populations")
+    }
+    if(coef >= 0.6){
+      message(paste0("degree of agreement in instrument associations between populations ", coef))
+    }
+  },
+
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
   # Hence, in pop1 it is in LD with the causal variant but not in pop2
   # So we extract a region around each instrument (e.g. 50kb)
