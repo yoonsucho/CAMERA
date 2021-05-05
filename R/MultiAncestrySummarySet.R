@@ -45,12 +45,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 # Methods
 #' @description
 #' Create a new dataset and initialise an R interface
-#' @param exposure_ids ID for exposure
-#' @param outcome_ids ID for outcome
-#' @param pops Ancestry information
-#' @param bfiles location of LD reference file
-#' @param plink location of plink 1.90
-#' @param radius insert
+#' @param exposure_ids IDs for the exposures from each population.
+#' @param outcome_ids IDs for the outcomes from each population.
+#' @param pops Ancestry information; AFR, AMR, EUR, EAS, SAS 
+#' @param bfiles Location of LD reference file (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
+#' @param plink Location of executable plink (ver.1.90)
+#' @param radius Set a range of the region to look for
 #' @param clump_pop insert
 #' @param x insert
   initialize = function(exposure_ids=NULL, outcome_ids=NULL, pops=NULL, bfiles=NULL, plink=NULL, radius=NULL, clump_pop=NULL, x=NULL)
@@ -74,7 +74,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - then looks up the same set of instruments in all exposures
 #' @description
 #'  Identifies the instruments for the exposure
-#' @param exposure_ids ID for exposure
+#' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
 
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
@@ -106,10 +106,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # So we extract a region around each instrument (e.g. 50kb)
   # Search for a SNP that is best associated in both pop1 and pop2
 #' @description
-#' Extract a region around extracted instrument
-#' @param radius insert
-#' @param instrument_raw insert
-#' @param exposure_ids ID for exposure
+#' Extract a region around each instrument obtained from \code{x$extract_instruments()}.
+#' @param radius Set a range of the region to search
+#' @param instrument_raw A set of instruments obtained from \code{x$extract_instruments()}
+#' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
   extract_instrument_regions = function(radius=self$radius, instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids)
   {
     # return a list of lists e.g.
@@ -172,9 +172,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - compare these to what is expected by chance under the hypothesis that the effect estimates are the same
   # this will provide some evidence for whether lack of replication is due to (e.g.) GxE
 #' @description
-#' Calculate what is expected by chance under the hypothesis that the effect estimates are the same
-#' @param instrument insert
-#' @param alpha insert
+#' Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
+#' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
+#' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
 
   estimate_instrument_specificity = function(instrument, alpha="bonferroni")
   {
