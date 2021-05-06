@@ -102,14 +102,32 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
   instrument_check = function(exposure_ids = self$exposure_ids){
-    suppressMessages(d <- TwoSampleMR::make_dat(exposure_ids[1], exposure_ids[2]))
-    suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
+    suppressMessages(d <- TwoSampleMR::make_dat(exposures=exposure_ids[1], outcomes=exposure_ids[2]))
+    d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+    #missing info on sample size, unit
+    if(is.na(d$units.exposure[1])){
+      message("Warning: Unit information is missing")
+      d$units.exposure[1] <- "temp"
+    }
+    if(is.na(d$samplesize.exposure[1])){
+      d$samplesize.exposure <- d$sample_size.exposure
+    }
+
+    if(is.na(d$units.outcome[1])){
+      message("Warning: Unit information is missing")
+      d$units.outcome[1] <- "temp"
+    }
+    if(is.na(d$samplesize.outcome[1])){
+      d$samplesize.outcome <- d$sample_size.outcome
+    }
+    sd <- TwoSampleMR::standardise_units(d)
+    suppressMessages(mr <- TwoSampleMR::mr(sd, method="mr_ivw"))
     coef <- mr$b
     if(coef < 0.6){
       message("disagreement in instrument associations between populations")
     }
     if(coef >= 0.6){
-      message(paste0("degree of agreement in instrument associations between populations ", coef))
+      message(paste0("degree of agreement in instrument associations between populations ", round(coef, 3)))
     }
   },
 
