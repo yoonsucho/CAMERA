@@ -15,6 +15,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   plink=NULL,
   clump_pop=NULL,
   instrument_raw=NULL,
+  harmonised_data_check=NULL,
+  standardised_dat=NULL,
   instrument_regions = NULL,
   ld_matrices = NULL,
   susie_results = NULL,
@@ -25,7 +27,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
-  harmonised_dat = NULL,
+  harmonised_data_sem = NULL,
   sem_result = NULL,
 
 # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
@@ -82,12 +84,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     # It gets the tophits in each exposure
     # Then randomly chooses one SNP per region to keep using clumping
     instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...)
-
     # Add chromosome and position
+    instrument_raw <- TwoSampleMR::add_metadata(instrument_raw, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+
     instrument_raw <- ieugwasr::variants_rsid(unique(instrument_raw$SNP)) %>%
-      dplyr::select(SNP=query, chr, position=pos) %>%
-      dplyr::inner_join(., instrument_raw, by="SNP") %>%
-      dplyr::arrange(id.exposure, chr, position)
+                         dplyr::select(SNP=query, chr, position=pos) %>%
+                         dplyr::inner_join(., instrument_raw, by="SNP") %>%
+                         dplyr::arrange(id.exposure, chr, position)
 
     # Arrange to be in order of exposure_ids
     # Rename columns
@@ -95,41 +98,46 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure)
-    instrument_raw %>% as.data.frame
-    self$instrument_raw <- instrument_raw
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size.exposure)
+    self$instrument_raw <- instrument_raw %>% as.data.frame
     invisible(self)
   },
 
-  instrument_check = function(exposure_ids = self$exposure_ids){
-    suppressMessages(d <- TwoSampleMR::make_dat(exposures=exposure_ids[1], outcomes=exposure_ids[2]))
-    d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    #missing info on sample size, unit
-    if(is.na(d$units.exposure[1])){
-      message("Warning: Unit information is missing")
-      d$units.exposure[1] <- "temp"
-    }
-    if(is.na(d$samplesize.exposure[1])){
-      d$samplesize.exposure <- d$sample_size.exposure
-    }
 
-    if(is.na(d$units.outcome[1])){
-      message("Warning: Unit information is missing")
-      d$units.outcome[1] <- "temp"
+  instrument_check = function(ids=self$exposure_ids){
+    exp <- TwoSampleMR::extract_instruments(ids[1])
+    suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=exp$SNP, outcome=ids[2]))
+    suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out, action=1))
+    d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+    if(is.na(d$units.exposure[1]) | is.na(d$units.outcome[1])){
+      message("Unit information is missing: Run x$standardise_units()")
     }
-    if(is.na(d$samplesize.outcome[1])){
-      d$samplesize.outcome <- d$sample_size.outcome
+    if(!is.na(d$units.exposure[1]) & !is.na(d$units.outcome[1]) & match(d$units.exposure[1], d$units.outcome[1]) != 1){
+      message("Discordant information across the population - Run x$standardise_units()")
     }
-    sd <- TwoSampleMR::standardise_units(d)
-    suppressMessages(mr <- TwoSampleMR::mr(sd, method="mr_ivw"))
+    suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
     coef <- mr$b
-    if(coef < 0.6){
-      message("disagreement in instrument associations between populations")
+    if(coef < 0.5){
+      message(paste0("Caution: degree of agreement in instrument associations between populations is low: ", round(coef, 3)))
     }
     if(coef >= 0.6){
-      message(paste0("degree of agreement in instrument associations between populations ", round(coef, 3)))
+      message(paste0("Degree of agreement in instrument associations between populations: ", round(coef, 3)))
     }
-  },
+
+    out <- list()
+    if(is.na(d$samplesize.exposure[1]) | is.na(d$sample_size.outcome[1])){
+     out <- d %>% 
+              dplyr::mutate(samplesize.exposure = sample_size.exposure) %>%
+              dplyr::mutate(samplesize.outcome = sample_size.outcome) %>%
+              dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
+    } else {
+      out <- d %>%
+              dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
+    }
+    self$harmonised_data_check <- out
+    invisible(self)
+    },
+
 
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
   # Hence, in pop1 it is in LD with the causal variant but not in pop2
@@ -251,10 +259,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param se_disc insert
 #' @param se_rep insert
 #' @param alpha insert
-  prop_overlap = function(b_disc, b_rep, se_disc, se_rep, alpha)
+ prop_overlap = function(b_disc, b_rep, se_disc, se_rep, alpha)
   {
     p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
-    p_sig <- pnorm(-abs(b_disc) / se_disc + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_disc - qnorm(alpha / 2)))
+    p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
     p_rep <- pnorm(abs(b_rep)/se_rep, lower.tail=FALSE)
     res <- dplyr::tibble(
       nsnp=length(b_disc),
@@ -264,7 +272,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     )
     return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
   },
-
 
 #' @description
 #' insert
@@ -429,8 +436,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' insert
 #' @param exp insert
 #' @param p_exp insert
- extract_outcome_data = function(exp=self$instrument_raw, p_exp=1) {
-    exp <- exp %>% as.data.frame
+ extract_outcome_data = function(exp=self$instrument_raw, standardised_dat=NULL, p_exp=1) {
+    if(standardised_dat == NULL){
     dx <- dplyr::inner_join(
       subset(exp, id == self$exposure_ids[[1]]),
       subset(exp, id == self$exposure_ids[[2]]),
@@ -438,24 +445,39 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     ) %>%
       dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y) %>%
       dplyr::filter(p1 < p_exp & p2 < p_exp)
+    
     out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
-
     dy <- dplyr::inner_join(
       subset(out, id.outcome == self$outcome_ids[[1]]),
       subset(out, id.outcome == self$outcome_ids[[2]]),
       by="SNP"
       ) %>%
         dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
-    dat <- dplyr::inner_join(dx, dy, by="SNP")   
-
+    dat <- dplyr::inner_join(dx, dy, by="SNP")  
     self$instrument_outcome <- out
-    self$harmonised_dat <- dat
+    self$harmonised_dat_sem <- dat
+  }
 
     invisible(self)
   },
 
-  # Generate harmonised dataset
 
+  standardise_units = function(dat=self$harmonised_data_check){
+    if(is.na(dat$units.exposure[1])){
+      message("Warning: Unit information is missing")
+      dat$units.exposure[1] <- "temp"
+    }
+    if(is.na(dat$units.outcome[1])){
+      message("Warning: Unit information is missing")
+      dat$units.outcome[1] <- "temp"
+    }
+    sd <- TwoSampleMR::standardise_units(dat)
+    self$standardised_dat <- sd
+    invisible(self)
+    },
+
+
+  # Generate harmonised dataset
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
 #' @description
 #' insert
