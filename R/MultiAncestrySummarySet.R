@@ -27,7 +27,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
-  harmonised_data_sem = NULL,
+  harmonised_dat_sem = NULL,
   sem_result = NULL,
 
 # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
@@ -113,7 +113,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       message("Unit information is missing: Run x$standardise_units()")
     }
     if(!is.na(d$units.exposure[1]) & !is.na(d$units.outcome[1]) & match(d$units.exposure[1], d$units.outcome[1]) != 1){
-      message("Discordant information across the population - Run x$standardise_units()")
+      message("Discordant information across the population - Please see vignettes")
     }
     suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
     coef <- mr$b
@@ -252,6 +252,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     return(self$instrument_specificity_summary)
   },
 
+
 #' @description
 #' insert
 #' @param b_disc insert
@@ -272,6 +273,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     )
     return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
   },
+
 
 #' @description
 #' insert
@@ -436,8 +438,21 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' insert
 #' @param exp insert
 #' @param p_exp insert
- extract_outcome_data = function(exp=self$instrument_raw, standardised_dat=NULL, p_exp=1) {
-    if(standardised_dat == NULL){
+ extract_outcome_data = function(exp=self$instrument_raw, standardise=FALSE, p_exp=1){
+    if(standardise == TRUE){
+      if(is.na(exp$units[1])){
+        exp$units[1] <- "temp"
+        }
+      estsd <- mean(TwoSampleMR::estimate_trait_sd(exp$beta, exp$se, exp$samplesize, exp$eaf), na.rm=TRUE)
+      if(!is.na(estsd))
+          {
+            stopifnot(!is.na(estsd))
+            exp$beta <- exp$beta / estsd
+            exp$se <- exp$se / estsd
+            exp$units <- "SD"
+            exp$estimated_sd <- estsd
+          }
+    }
     dx <- dplyr::inner_join(
       subset(exp, id == self$exposure_ids[[1]]),
       subset(exp, id == self$exposure_ids[[2]]),
@@ -447,7 +462,22 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       dplyr::filter(p1 < p_exp & p2 < p_exp)
     
     out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
-    dy <- dplyr::inner_join(
+    out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+    if(standardise == TRUE){
+      if(is.na(out$units.outcome[1])){
+        out$units.outcome[1] <- "temp"
+        }
+      estsd <- mean(TwoSampleMR::estimate_trait_sd(out$beta.outcome, out$se.outcome, out$samplesize.outcome, out$eaf.outcome), na.rm=TRUE)
+      if(!is.na(estsd))
+          {
+            stopifnot(!is.na(estsd))
+            out$beta.outcome <- out$beta.outcome / estsd
+            out$se.outcome <- out$se.outcome / estsd
+            out$units.outcome <- "SD"
+            out$estimated_sd.outcome <- estsd
+          }
+    }  
+      dy <- dplyr::inner_join(
       subset(out, id.outcome == self$outcome_ids[[1]]),
       subset(out, id.outcome == self$outcome_ids[[2]]),
       by="SNP"
@@ -456,27 +486,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     dat <- dplyr::inner_join(dx, dy, by="SNP")  
     self$instrument_outcome <- out
     self$harmonised_dat_sem <- dat
-  }
-
-    invisible(self)
-  },
-
-
-  standardise_units = function(dat=self$harmonised_data_check){
-    if(is.na(dat$units.exposure[1])){
-      message("Warning: Unit information is missing")
-      dat$units.exposure[1] <- "temp"
-    }
-    if(is.na(dat$units.outcome[1])){
-      message("Warning: Unit information is missing")
-      dat$units.outcome[1] <- "temp"
-    }
-    sd <- TwoSampleMR::standardise_units(dat)
-    self$standardised_dat <- sd
     invisible(self)
     },
 
-
+  
   # Generate harmonised dataset
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
 #' @description
@@ -501,7 +514,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
                   {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
-    runsem <- function(model, data, modname)
+  runsem <- function(model, data, modname)
         {
           mod <- lavaan::sem(model, data=data)
           invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
@@ -820,4 +833,6 @@ plot_MsCAVIAR <- function(res)
     geom_point(aes(colour=name)) +
     facet_grid(name ~ ., scale="free_y")
 }
+
+
 
