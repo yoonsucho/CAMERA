@@ -321,11 +321,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }) %>%
       dplyr::bind_rows() %>%
       dplyr::arrange(id, chr, position)
+      t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>% 
+           dplyr::select(id, units, samplesize)
+      self$instrument_maxz  <- dplyr::left_join(self$instrument_maxz, t, by = "id") %>% as.data.frame()
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)
     {
       subset(self$instrument_maxz, id == i)
     }) %>% dplyr::bind_rows()
-
   },
 
 #' @description
@@ -460,7 +462,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     ) %>%
       dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y) %>%
       dplyr::filter(p1 < p_exp & p2 < p_exp)
-    
     out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
     out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
     if(standardise == TRUE){
@@ -487,7 +488,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$instrument_outcome <- out
     self$harmonised_dat_sem <- dat
     invisible(self)
-    },
+  },
 
   
   # Generate harmonised dataset
@@ -495,7 +496,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @description
 #' insert
 #' @param harmonised_dat insert
-  perform_basic_sem = function(harmonised_dat = self$harmonised_dat) {
+  perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
     d <- harmonised_dat %>%
          dplyr::mutate(r1 = y1/x1) %>%
          dplyr::mutate(r2 = y2/x2) %>%
