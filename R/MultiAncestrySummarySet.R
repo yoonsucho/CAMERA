@@ -104,7 +104,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-  instrument_check = function(ids=self$exposure_ids){
+  check_instruments = function(ids=self$exposure_ids){
     exp <- TwoSampleMR::extract_instruments(ids[1])
     suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=exp$SNP, outcome=ids[2]))
     suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out, action=1))
