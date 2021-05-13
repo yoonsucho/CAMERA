@@ -49,7 +49,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' Create a new dataset and initialise an R interface
 #' @param exposure_ids IDs for the exposures from each population.
 #' @param outcome_ids IDs for the outcomes from each population.
-#' @param pops Ancestry information; AFR, AMR, EUR, EAS, SAS 
+#' @param pops Ancestry information; AFR, AMR, EUR, EAS, SAS
 #' @param bfiles Location of LD reference file (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
 #' @param plink Location of executable plink (ver.1.90)
 #' @param radius Set a range of the region to look for
@@ -86,25 +86,29 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...)
     # Add chromosome and position
     instrument_raw <- TwoSampleMR::add_metadata(instrument_raw, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-
     instrument_raw <- ieugwasr::variants_rsid(unique(instrument_raw$SNP)) %>%
                          dplyr::select(SNP=query, chr, position=pos) %>%
                          dplyr::inner_join(., instrument_raw, by="SNP") %>%
                          dplyr::arrange(id.exposure, chr, position)
-
     # Arrange to be in order of exposure_ids
     # Rename columns
     instrument_raw <- lapply(self$exposure_ids, function(id) {
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size.exposure)
-    self$instrument_raw <- instrument_raw %>% as.data.frame
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size.exposure) %>% as.data.frame
+    # Check if top hits are significant in both populations
+    t <- instrument_raw %>% dplyr::group_by(id.exposure) %>%
+      dplyr::summarise(sum(pval.exposure < 5e-8))
+    id <- t$id.exposure[t$`sum(pval.exposure < 5e-08)` < 1]
+    if(!is.na(id)) {
+      message(paste0("Caution: No SNPs reached genome-wide significance threshold in ", id))
+    }
+    self$instrument_raw <- instrument_raw
     invisible(self)
   },
 
-
-  instrument_check = function(ids=self$exposure_ids){
+  check_instruments = function(ids=self$exposure_ids){
     exp <- TwoSampleMR::extract_instruments(ids[1])
     suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=exp$SNP, outcome=ids[2]))
     suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out, action=1))
@@ -120,13 +124,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     if(coef < 0.5){
       message(paste0("Caution: degree of agreement in instrument associations between populations is low: ", round(coef, 3)))
     }
-    if(coef >= 0.6){
+    if(coef >= 0.5){
       message(paste0("Degree of agreement in instrument associations between populations: ", round(coef, 3)))
     }
 
     out <- list()
     if(is.na(d$samplesize.exposure[1]) | is.na(d$sample_size.outcome[1])){
-     out <- d %>% 
+     out <- d %>%
               dplyr::mutate(samplesize.exposure = sample_size.exposure) %>%
               dplyr::mutate(samplesize.outcome = sample_size.outcome) %>%
               dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
@@ -321,7 +325,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }) %>%
       dplyr::bind_rows() %>%
       dplyr::arrange(id, chr, position)
-      t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>% 
+      t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
            dplyr::select(id, units, samplesize)
       self$instrument_maxz  <- dplyr::left_join(self$instrument_maxz, t, by = "id") %>% as.data.frame()
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)
@@ -477,20 +481,20 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             out$units.outcome <- "SD"
             out$estimated_sd.outcome <- estsd
           }
-    }  
+    }
       dy <- dplyr::inner_join(
       subset(out, id.outcome == self$outcome_ids[[1]]),
       subset(out, id.outcome == self$outcome_ids[[2]]),
       by="SNP"
       ) %>%
         dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
-    dat <- dplyr::inner_join(dx, dy, by="SNP")  
+    dat <- dplyr::inner_join(dx, dy, by="SNP")
     self$instrument_outcome <- out
     self$harmonised_dat_sem <- dat
     invisible(self)
   },
 
-  
+
   # Generate harmonised dataset
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
 #' @description
@@ -532,20 +536,20 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$semA <- runsem('
                        y1 ~ biv*x1
                        y2 ~ biv*x2
-                       ', d, "UnweightedSEMa")[1, ] %>% 
+                       ', d, "UnweightedSEMa")[1, ] %>%
                       dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
 
     out$semB <- runsem('
                        y1 ~ biv_1*x1
                        y2 ~ biv_2*x2
                        ', d, "UnweightedSEMb")
-    
+
     out$modC <- runsem('
                        o1 ~ biv*w1
                        o2 ~ biv*w2
-                       ', d, "RadialSEMa")[1, ] %>% 
+                       ', d, "RadialSEMa")[1, ] %>%
                       dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
-    
+
     out$modD <- runsem('
                        o1 ~ biv_1*w1
                        o2 ~ biv_2*w2

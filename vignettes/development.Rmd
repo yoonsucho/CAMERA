@@ -1,5 +1,5 @@
 ---
-title: "development"
+title: "Guide to using MR.TRAM"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{development}
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-The following analyses should run within a couple of minutes, depending on internet speed and the traffic that the [IEU GWAS database](https://gwas.mrcieu.ac.uk/) servers are experiencing.Begin by choosing an exposure and outcome hypothesis that can be tested in populations of interest. e.g. body mass index and coronary heart disease in European ancestry and East Asian ancestry.These data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. Plink (ver.1.90) and LD reference data is also required to identify instrument that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
+The following analyses should run within a couple of minutes, depending on internet speed and the traffic that the [IEU GWAS database](https://gwas.mrcieu.ac.uk/) servers are experiencing. Begin by choosing an exposure and outcome hypothesis that can be tested across the populations of interest (e.g. body mass index and coronary heart disease in European ancestry and East Asian ancestry). 
 
 
 ## Data setup
@@ -27,45 +27,68 @@ install.packages("devtools")
 devtools::install_github("universe77/MR.TRAM")
 ```
 
-Open R6 class environment to run MR-TRAM. Here, the exposures and the outcomes should be same across the ancestries. 
+Open R6 class environment to run MR-TRAM. Plink (ver.1.90) and LD reference data are also required to identify instruments that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
 
 ```{r setup}
 library(MR.TRAM)
 
 # Need to specify path to plink and LD reference data here.
-# Following exposures and outcome will be used: Exposures: CRP (EUR-EAS); Outcomes: CHD (EUR-EAS)
+# The following exposures and the outcomes will be used: Exposures: CRP (EUR-EAS); Outcomes: CHD (EUR-EAS)
 x <- MultiAncestrySummarySet$new(
 	exposure_ids=c("ieu-b-35", "ukb-e-30710_EAS"), 
 	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-	bfiles=c("/Users/gh13047/data/ld_files/ldmat/EAS", "/Users/gh13047/data/ld_files/ldmat/AFR"), 
+	bfiles=c("/work/yc16575/1kg_imp_gwasglue/EAS", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
 	plink = genetics.binaRies::get_plink_binary(), 
 	radius=50000, 
 	clump_pop="ASN"
 )
 ```
 
+Make sure that the exposures/outcomes are matched across the ancestries. Population 1 and 2 should have the same exposure-outcome pair. These data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. A list of available traits can be obtained using:
+```{r}
+traits <- TwoSampleMR::available_outcomes()
+```
+
 ## Running MR.TRAM
 
-We can now perform the analysis:
-
-This will do the following:
+We can now perform the analysis, which will do the following:
 
 1. Extract instruments for the exposures
-2. Identify where the instruments are located (region information)
-3. Extract instruments again from the identified region based on magnitude of instrument-exposure association
+2. Check the validity of the instruments
+3. Identify region that include the instrument and extract instruments again from identified region
 4. Extract instruments for the outcomes
 5. Perform MR using genomic structural equation model
 
 
 ## Step by step analysis 
+
 See the `?MR.TRAM` for options on the parameters for this analysis. 
+
+### Step 1. Extract instruments for the exposures from each pouplation
+Note that the exposures/outcomes should be matched across the ancestries. 
+
 ```{r}
-# Extract instruments for each exposure
 x$extract_instruments()
+```
 
-# Estimate what fraction of the instruments (raw instrument) we'd expect to replicate across the ancestries
+### Step 2. Check the validity of the instruments
+The degree of agreement in instrument associations (instrument-traits) between populations need to be assessed.
+
+```{r}
+x$check_instruments()
+```
+Low degree of agreement (< 0.5) indidcates that the instruments are not reliable for further analysis. It is recommened to use other available instruments for the traits (https://gwas.mrcieu.ac.uk/). If the units for the exposures and the outcomes are different, use `strandardise=TRUE` options when it extract instrument for the outcomes. 
+
+Then estimate what fraction of the instruments (raw instrument) we would expect to replicate across the populations.
+
+```{r}
 x$estimate_instrument_specificity(x$instrument_raw)
+```
 
+### Step 3. Identify region that include the instrument and extract instruments again from the identified region
+The following function will identify region that includes the instrument. Then it will extract instruments again from the identified region. Instruments will be selected based on magnitude of instrument-exposure association.
+
+```{r, fig.width = 7, fig.height = 6, out.width = "700px", out.height="600px", dpi=300}
 # Identify regions that include the instruments
 x$extract_instrument_regions()
 
@@ -74,22 +97,38 @@ x$scan_regional_instruments()
 
 # Plot regions and their region-selected instruments
 x$plot_regional_instruments(instruments=x$instrument_maxz)
+```
 
+Check the replication fraction between the populations using the new instruments (instrument_maxz).
+```{r}
 # Estimate what fraction of the region-selected instruments we'd expect to replicate
 x$estimate_instrument_specificity(x$instrument_maxz)
+```
 
-# obtain LD matrices
-#x$regional_ld_matrices()
-
-# Get outcome data for a particular set of instruments (raw)
+### Step 4. Extract instruments for the outcomes
+Get outcome data for a particular set of instruments 
+```{r}
 x$extract_outcome_data(exp=x$instrument_raw, p_exp=1)
+```
+When the units are not the same between the populations, the beta and SE for the exposure and the 
+outcome should be normalised using:
 
-# Run SEM model
-x$perform_basic_sem(harmonised_dat = x$harmonised_dat)
+```{r}
+x$extract_outcome_data(exp=x$instrument_raw, standardise=TRUE, p_exp=1)
+```
 
-# Get outcome data for a particular set of instruments and run SEM model (selected)
+### Step 5. Perform MR using genomic structural equation model (MR-SEM)
+```{r}
+x$perform_basic_sem()
+```
+
+
+You can also perfrom MR-SEM using the instruments from the Step 3.
+```{r}
+# Get outcome data for a particular set of instruments and run SEM model 
 x$extract_outcome_data(exp=x$instrument_maxz, p_exp=1)
-x$perform_basic_sem(harmonised_dat = x$harmonised_dat)
+x$perform_basic_sem()
 
 ```
+
 
