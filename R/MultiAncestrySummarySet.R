@@ -98,10 +98,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       dplyr::bind_rows() %>%
       dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size.exposure) %>% as.data.frame
     # Check if top hits are significant in both populations
-    t <- instrument_raw %>% dplyr::group_by(id.exposure) %>%
-      dplyr::summarise(sum(pval.exposure < 5e-8))
-    id <- t$id.exposure[t$`sum(pval.exposure < 5e-08)` < 1]
-    if(!is.na(id)) {
+    t <- instrument_raw %>% dplyr::group_by(id) %>%
+          dplyr::summarise(sum(p < 5e-8)) 
+    id <- list()
+    id <- t$id[t$`sum(p < 5e-08)` < 1]
+    if(length(id) > 0){
       message(paste0("Caution: No SNPs reached genome-wide significance threshold in ", id))
     }
     self$instrument_raw <- instrument_raw
