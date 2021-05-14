@@ -29,6 +29,7 @@ devtools::install_github("universe77/MR.TRAM")
 
 Open R6 class environment to run MR-TRAM. Plink (ver.1.90) and LD reference data are also required to identify instruments that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
 
+
 ```{r setup}
 library(MR.TRAM)
 
@@ -52,7 +53,6 @@ traits <- TwoSampleMR::available_outcomes()
 ## Running MR.TRAM
 
 We can now perform the analysis, which will do the following:
-
 1. Extract instruments for the exposures
 2. Check the validity of the instruments
 3. Identify region that include the instrument and extract instruments again from identified region
@@ -77,10 +77,9 @@ The degree of agreement in instrument associations (instrument-traits) between p
 ```{r}
 x$check_instruments()
 ```
-Low degree of agreement (< 0.5) indidcates that the instruments are not reliable for further analysis. It is recommened to use other available instruments for the traits (https://gwas.mrcieu.ac.uk/). If the units for the exposures and the outcomes are different, use `strandardise=TRUE` options when it extract instrument for the outcomes. 
+Low degree of agreement (< 0.5) indidcates that the instruments are not reliable for further analysis. It is recommended to use other available instruments for the traits (https://gwas.mrcieu.ac.uk/). If the units for the exposures and the outcomes are different, use `strandardise=TRUE` options when it extract instrument for the outcomes. 
 
 Then estimate what fraction of the instruments (raw instrument) we would expect to replicate across the populations.
-
 ```{r}
 x$estimate_instrument_specificity(x$instrument_raw)
 ```
@@ -88,6 +87,7 @@ x$estimate_instrument_specificity(x$instrument_raw)
 ### Step 3. Identify region that include the instrument and extract instruments again from the identified region
 The following function will identify region that includes the instrument. Then it will extract instruments again from the identified region. Instruments will be selected based on magnitude of instrument-exposure association.
 
+<<<<<<< HEAD
 ```{r, fig.width = 7, fig.height = 6, out.width = "700px", out.height="600px", dpi=300}
 # Identify regions that include the instruments
 x$extract_instrument_regions()
@@ -121,7 +121,6 @@ x$extract_outcome_data(exp=x$instrument_raw, standardise=TRUE, p_exp=1)
 ```{r}
 x$perform_basic_sem()
 ```
-
 
 You can also perfrom MR-SEM using the instruments from the Step 3.
 ```{r}
