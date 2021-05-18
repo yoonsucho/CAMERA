@@ -34,15 +34,15 @@ Open R6 class environment to run MR-TRAM. Plink (ver.1.90) and LD reference data
 library(MR.TRAM)
 
 # Need to specify path to plink and LD reference data here.
-# The following exposures and the outcomes will be used: Exposures: CRP (EUR-EAS); Outcomes: CHD (EUR-EAS)
+# The following exposures and the outcomes will be used: Exposures: BMI (EUR-EAS); Outcomes: CHD (EUR-EAS)
 x <- MultiAncestrySummarySet$new(
-	exposure_ids=c("ieu-b-35", "ukb-e-30710_EAS"), 
-	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-	bfiles=c("/work/yc16575/1kg_imp_gwasglue/EAS", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-	plink = genetics.binaRies::get_plink_binary(), 
-	radius=50000, 
-	clump_pop="ASN"
-)
+  		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
+  		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  		bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/		EAS"), 		
+  		plink = genetics.binaRies::get_plink_binary(), 		
+  		radius=50000, 
+  		clump_pop="EAS"
+	)
 ```
 
 Make sure that the exposures/outcomes are matched across the ancestries. Population 1 and 2 should have the same exposure-outcome pair. These data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. A list of available traits can be obtained using:

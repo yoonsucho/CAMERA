@@ -103,7 +103,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     id <- list()
     id <- t$id[t$`sum(p < 5e-08)` < 1]
     if(length(id) > 0){
-      message(paste0("Caution: No SNPs reached genome-wide significance threshold in ", id))
+      message(paste0("Caution: No SNPs reached genome-wide significance threshold for the trait in ", id))
     }
     self$instrument_raw <- instrument_raw
     invisible(self)
