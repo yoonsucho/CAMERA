@@ -18,91 +18,11 @@ knitr::opts_chunk$set(
 library(MR.TRAM)
 ```
 
-# Exposures: BMI (EUR-EAS); Outcomes: CHD (EUR-EAS)
+# Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure, EAS: BBJ); 
+# Outcomes: CHD (EUR-EAS)
 ```{r}
-x <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-a-2", "bbj-a-1"), 
-  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
-x$extract_instruments()
-x$check_instruments()
-x$estimate_instrument_specificity(x$instrument_raw)
-x$extract_instrument_regions()
-x$scan_regional_instruments()
-x$estimate_instrument_specificity(x$instrument_maxz)
-x$extract_outcome_data(exp=x$instrument_raw, standardise = T, p_exp=1)
-x$perform_basic_sem()
-
-x$extract_outcome_data(exp=x$instrument_maxz, standardise = T, p_exp=1)
-x$perform_basic_sem()
-
-```
-
-
-# Exposures: Smoking (EUR-EAS); Outcomes: CHD (EUR-EAS)
-```{r}
-rm(list=ls())
-y <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-d-20116_0", "bbj-a-78"), 
-  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(),
-  radius=50000, 
-  clump_pop="EAS"
-)
-y$extract_instruments()
-y$check_instruments()
-y$estimate_instrument_specificity(y$instrument_raw)
-y$extract_instrument_regions()
-y$scan_regional_instruments()
-y$plot_regional_instruments(instruments=y$instrument_maxz)
-y$estimate_instrument_specificity(y$instrument_maxz)
-
-# Run SEM model
-y$extract_outcome_data(exp=y$instrument_raw, p_exp=1)
-y$perform_basic_sem()
-
-y$extract_outcome_data(exp=y$instrument_maxz, p_exp=1)
-y$perform_basic_sem()
-
-```
-
-
-# Exposures: SBP (EUR-EAS); Outcomes: CHD (EUR-EAS)
-```{r}
-rm(list=ls())
-z <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-b-20175", "bbj-a-52"), 
-  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
-z$extract_instruments()
-z$check_instruments()
-z$estimate_instrument_specificity(z$instrument_raw)
-z$extract_instrument_regions()
-z$scan_regional_instruments()
-z$plot_regional_instruments(instruments=z$instrument_maxz)
-z$estimate_instrument_specificity(z$instrument_maxz)
-z$extract_outcome_data(exp=z$instrument_raw, p_exp=1)
-z$perform_basic_sem()
-
-z$extract_outcome_data(exp=z$instrument_maxz, p_exp=1)
-z$perform_basic_sem()
-
-```
-
-# Smoking and CHD
-```{r}
-rm(list=ls())
 a <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-d-20116_0", "bbj-a-78"), 
+  exposure_ids=c("ieu-b-38", "bbj-a-52"), 
   outcome_ids=c("ieu-a-7", "bbj-a-109"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
@@ -114,21 +34,46 @@ a$check_instruments()
 a$estimate_instrument_specificity(a$instrument_raw)
 a$extract_instrument_regions()
 a$scan_regional_instruments()
-a$plot_regional_instruments(instruments=a$instrument_maxz)
 a$estimate_instrument_specificity(a$instrument_maxz)
-a$extract_outcome_data(exp=a$instrument_raw, p_exp=1)
+a$extract_outcome_data(exp=a$instrument_raw, standardise = T, p_exp=1)
 a$perform_basic_sem()
 
-a$extract_outcome_data(exp=a$instrument_maxz, p_exp=1)
+a$extract_outcome_data(exp=a$instrument_maxz, standardise = T, p_exp=1)
 a$perform_basic_sem()
+
 ```
 
-# BMI and CHD
+# Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure, EAS: BBJ); 
+# Outcomes: CHD (EUR-EAS)
 ```{r}
-rm(list=ls())
+a1 <- MultiAncestrySummarySet$new(
+  exposure_ids=c("bbj-a-52", "ieu-b-38"), 
+  outcome_ids=c("bbj-a-109", "ieu-a-7"), 
+  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+  plink = genetics.binaRies::get_plink_binary(), 
+  radius=50000, 
+  clump_pop="EAS"
+)
+a1$extract_instruments()
+a1$check_instruments()
+a1$estimate_instrument_specificity(a1$instrument_raw)
+a1$extract_instrument_regions()
+a1$scan_regional_instruments()
+a1$estimate_instrument_specificity(a1$instrument_maxz)
+a1$extract_outcome_data(exp=a1$instrument_raw, standardise = T, p_exp=1)
+a1$perform_basic_sem()
 
+a1$extract_outcome_data(exp=a1$instrument_maxz, standardise = T, p_exp=1)
+a1$perform_basic_sem()
+
+```
+
+
+# Exposures: SBP (EUR: Systolic blood pressure, automated reading; MRC-IEU, EAS: BBJ); 
+# Outcomes: CHD (EUR-EAS)
+```{r}
 b <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-b-19953", "bbj-a-1"), 
+  exposure_ids=c("ukb-b-19953", "bbj-a-52"), 
   outcome_ids=c("ieu-a-7", "bbj-a-109"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
@@ -149,11 +94,67 @@ b$extract_outcome_data(exp=b$instrument_maxz, p_exp=1)
 b$perform_basic_sem()
 ```
 
-# Alcohol and BMI
+
+# Exposures: SBP (EUR: Systolic blood pressure, automated reading; MRC-IEU, EAS: BBJ); 
+# Outcomes: CHD (EUR-EAS)
+```{r}
+b1 <- MultiAncestrySummarySet$new(
+  exposure_ids=c("bbj-a-52", "ukb-b-19953"), 
+  outcome_ids=c("bbj-a-109", "ieu-a-7"), 
+  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+  plink = genetics.binaRies::get_plink_binary(), 
+  radius=50000, 
+  clump_pop="EAS"
+)
+b1$extract_instruments()
+b1$check_instruments()
+b1$estimate_instrument_specificity(b1$instrument_raw)
+b1$extract_instrument_regions()
+b1$scan_regional_instruments()
+b1$plot_regional_instruments(instruments=b1$instrument_maxz)
+b1$estimate_instrument_specificity(b1$instrument_maxz)
+b1$extract_outcome_data(exp=b1$instrument_raw, p_exp=1)
+b1$perform_basic_sem()
+
+b1$extract_outcome_data(exp=b1$instrument_maxz, p_exp=1)
+b1$perform_basic_sem()
+```
+
+
+# Exposures: SBP (EAS: Systolic blood pressure, automated reading; Pan-UKB; EAS: BBJ)
+# Outcomes: CHD (EUR-EAS)
 ```{r}
 c <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-b-5779", "ukb-e-1558_EAS"), 
-  outcome_ids=c("ieu-a-2", "bbj-a-1"), 
+  exposure_ids=c("ukb-e-4080_EAS", "bbj-a-52"), 
+  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
+  plink = genetics.binaRies::get_plink_binary(), 
+  radius=50000, 
+  clump_pop="EAS"
+)
+c$extract_instruments()
+c$check_instruments()
+c$estimate_instrument_specificity(c$instrument_raw)
+c$extract_instrument_regions()
+c$scan_regional_instruments()
+c$plot_regional_instruments(instruments=c$instrument_maxz)
+c$estimate_instrument_specificity(c$instrument_maxz)
+c$extract_outcome_data(exp=c$instrument_raw, standardise = T, p_exp=1)
+c$perform_basic_sem()
+
+c$extract_outcome_data(exp=c$instrument_maxz, standardise = T, p_exp=1)
+c$perform_basic_sem()
+
+```
+
+
+# Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure,EUR: EUR: Systolic blood pressure, automated reading); 
+# Outcomes: CHD (EUR-EAS)
+#Error: attempt to use zero-length variable name
+```r
+c <- MultiAncestrySummarySet$new(
+  exposure_ids=c("ieu-b-38", "ukb-b-19953"), 
+  outcome_ids=c("ieu-a-7", "ieu-a-7"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
   radius=50000, 

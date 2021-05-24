@@ -96,10 +96,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size.exposure) %>% as.data.frame
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=samplesize.exposure) %>% as.data.frame
     # Check if top hits are significant in both populations
     t <- instrument_raw %>% dplyr::group_by(id) %>%
-          dplyr::summarise(sum(p < 5e-8)) 
+          dplyr::summarise(sum(p < 5e-8))
     id <- list()
     id <- t$id[t$`sum(p < 5e-08)` < 1]
     if(length(id) > 0){
@@ -110,27 +110,29 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
   check_instruments = function(ids=self$exposure_ids){
-    exp <- TwoSampleMR::extract_instruments(ids[1])
-    suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=exp$SNP, outcome=ids[2]))
-    suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out, action=1))
+    suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
+    suppressMessages(outcomes <- TwoSampleMR::extract_outcome_data(snps, ids))
+    suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
+    suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
     d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    if(is.na(d$units.exposure[1]) | is.na(d$units.outcome[1])){
+
+    texp <- d %>% dplyr::group_by(id.outcome) %>%
+          dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
+
+    if(any(is.na(texp$units))){
       message("Unit information is missing: Run x$standardise_units()")
     }
-    if(!is.na(d$units.exposure[1]) & !is.na(d$units.outcome[1]) & match(d$units.exposure[1], d$units.outcome[1]) != 1){
+    if(!any(is.na(texp$units)) & length(unique(texp$units)) != 1){
       message("Discordant information across the population - Please see vignettes")
     }
     suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
-    coef <- mr$b
-    if(coef < 0.5){
-      message(paste0("Caution: degree of agreement in instrument associations between populations is low: ", round(coef, 3)))
-    }
-    if(coef >= 0.5){
-      message(paste0("Degree of agreement in instrument associations between populations: ", round(coef, 3)))
-    }
+
+    invisible(lapply (1:nrow(mr), function(i){
+      message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
+    }))
 
     out <- list()
-    if(is.na(d$samplesize.exposure[1]) | is.na(d$sample_size.outcome[1])){
+    if(any(is.na(texp$sample))){
      out <- d %>%
               dplyr::mutate(samplesize.exposure = sample_size.exposure) %>%
               dplyr::mutate(samplesize.outcome = sample_size.outcome) %>%
@@ -139,7 +141,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       out <- d %>%
               dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
     }
-    self$harmonised_data_check <- out
     invisible(self)
     },
 
