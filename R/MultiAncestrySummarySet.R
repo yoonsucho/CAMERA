@@ -107,7 +107,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
     self$instrument_raw <- instrument_raw
     invisible(self)
-  }, 
+  },
 
   check_instruments = function(ids=self$exposure_ids){
     suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
@@ -115,16 +115,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
     suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
     d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-<<<<<<< HEAD
-
     texp <- d %>% dplyr::group_by(id.outcome) %>%
           dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
-=======
-    
-    texp <- d %>% dplyr::group_by(id.outcome) %>%
-          dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1]) 
->>>>>>> 1b1489e4118213cc5c813b7e37efb8669af22f0d
-
     if(any(is.na(texp$units))){
       message("Unit information is missing: Run x$standardise_units()")
     }
@@ -132,12 +124,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       message("Discordant information across the population - Please see vignettes")
     }
     suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
-
-<<<<<<< HEAD
     invisible(lapply (1:nrow(mr), function(i){
-=======
-    invisible(lapply (1:nrow(mr), function(i){ 
->>>>>>> 1b1489e4118213cc5c813b7e37efb8669af22f0d
       message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
     }))
 
