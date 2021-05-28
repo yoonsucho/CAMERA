@@ -127,17 +127,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(lapply (1:nrow(mr), function(i){
       message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
     }))
-
-    out <- list()
-    if(any(is.na(texp$sample))){
-     out <- d %>%
-              dplyr::mutate(samplesize.exposure = sample_size.exposure) %>%
-              dplyr::mutate(samplesize.outcome = sample_size.outcome) %>%
-              dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
-    } else {
-      out <- d %>%
-              dplyr::select(-c("sample_size.exposure", "sample_size.x", "sample_size.outcome", "sample_size.y"))
-    }
     invisible(self)
     },
 
@@ -164,7 +153,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     regions <- unique(paste0(instrument_raw$chr, ":", instrument_raw$position-radius, "-", instrument_raw$position+radius))
 
     # Lookup each region in each exposure
-    self$instrument_regions <- lapply(regions, function(r) {
+    self$instrument_regions <- lapply(regions, function(r) {tryCatch({
       message(r)
       a <- lapply(self$exposure_ids, function(id) {
         message(id)
@@ -202,6 +191,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       })
       names(a) <- self$exposure_ids
       return(a)
+     } , error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
     names(self$instrument_regions) <- unique(instrument_raw$rsid)
   },
@@ -288,8 +278,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     # - normalising the Z scores for each trait (to be in range -1 to 1)
     # - adding the z scores together across traits
     # - choosing the largest abs(z) across all traits
-
-    temp <- lapply(self$instrument_regions, function(r) {
+    instrument_regions <- instrument_regions[lengths(instrument_regions) != 0]
+    temp <- lapply(instrument_regions, function(r) {
       lapply(r, function(id) {
         id$beta / id$se
       }) %>% dplyr::bind_cols()
@@ -304,19 +294,19 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       temp[[i]] %>%
         dplyr::mutate(
           zsum = z[[i]],
-          rsid = self$instrument_regions[[i]][[1]]$rsid,
-          chr = self$instrument_regions[[i]][[1]]$chr,
-          position = self$instrument_regions[[i]][[1]]$position,
+          rsid = instrument_regions[[i]][[1]]$rsid,
+          chr = instrument_regions[[i]][[1]]$chr,
+          position = instrument_regions[[i]][[1]]$position,
         )
     })
-    names(self$instrument_region_zscores) <- names(self$instrument_regions)
+    names(self$instrument_region_zscores) <- names(instrument_regions)
     self$instrument_maxz <- names(self$instrument_region_zscores) %>%
       lapply(., function(r) {
         o <- self$instrument_region_zscores[[r]] %>%
           dplyr::arrange(desc(abs(zsum))) %>%
           dplyr::slice(1) %>%
           dplyr::mutate(original=r)
-        self$instrument_regions[[r]] %>%
+        instrument_regions[[r]] %>%
           lapply(., function(id){
             subset(id, rsid == o$rsid) %>%
               dplyr::mutate(original_rsid = r, zsum=o$zsum)
@@ -324,7 +314,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }) %>%
       dplyr::bind_rows() %>%
       dplyr::arrange(id, chr, position)
-      t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
+      t <- instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
            dplyr::select(id, units, samplesize)
       self$instrument_maxz  <- dplyr::left_join(self$instrument_maxz, t, by = "id") %>% as.data.frame()
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)

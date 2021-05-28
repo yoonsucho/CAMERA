@@ -14,8 +14,10 @@ knitr::opts_chunk$set(
 ```
 
 # Call the package
-```{r}
-library(MR.TRAM)
+```{r set up}
+library(devtools)
+load_all()
+source("MultiAncestrySummarySet.R")
 ```
 
 # Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure, EAS: BBJ); 
