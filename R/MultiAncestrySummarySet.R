@@ -16,7 +16,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   clump_pop=NULL,
   instrument_raw=NULL,
   harmonised_data_check=NULL,
-  standardised_dat=NULL,
+  standardised_exp=NULL,
+  standardised_out=NULL,
   instrument_regions = NULL,
   ld_matrices = NULL,
   susie_results = NULL,
@@ -109,14 +110,14 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
-  check_instruments = function(ids=self$exposure_ids){
+  check_phenotypes = function(ids=self$exposure_ids){
     suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
     suppressMessages(outcomes <- TwoSampleMR::extract_outcome_data(snps, ids))
     suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
     suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
     d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
     texp <- d %>% dplyr::group_by(id.outcome) %>%
-          dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
+                  dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
     if(any(is.na(texp$units))){
       message("Unit information is missing: Run x$standardise_units()")
     }
@@ -124,12 +125,35 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       message("Discordant information across the population - Please see vignettes")
     }
     suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
-    invisible(lapply (1:nrow(mr), function(i){
+    invisible(lapply(1:nrow(mr), function(i){
       message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
     }))
     invisible(self)
     },
 
+  standardised_units = function(exp=NULL, out=NULL){
+    standardised <- function(dat=NULL){
+      dat <- dat %>%
+                  dplyr::group_by(id) %>%
+                  tidyr::replace_na(list(units = "temp")) %>%
+                  dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE))
+      if(any(!is.na(dat$estimated_sd)))
+      {
+        stopifnot(!any(is.na(dat$estimated_sd)))
+        dat$beta <- dat$beta / dat$estimated_sd
+        dat$se <- dat$se / dat$estimated_sd
+        dat$units <- "SD"
+      }
+      return(dat)
+    }
+    if(!is.null(exp)){
+      self$standardised_exposure <- standardised(dat=exp)
+    }
+    if(!is.null(out)){
+      self$standardised_outcome <- standardised(dat=out)
+    }
+    invisible(self)
+  },
 
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
   # Hence, in pop1 it is in LD with the causal variant but not in pop2

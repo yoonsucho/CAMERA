@@ -23,6 +23,7 @@ Imports: ieugwasr,
         dplyr,
         winnerscurse,
 	    tidyverse,
+	    tidyr,
         magrittr,
         genetics.binaRies
 Config/testthat/edition: 3
