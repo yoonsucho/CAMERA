@@ -18,6 +18,15 @@ knitr::opts_chunk$set(
 library(MR.TRAM)
 ```
 
+```r
+y <- a
+a$import(y)
+
+a <- MultiAncestrySummarySet$new()
+a$import(y)
+
+```
+
 # SBP-CHD
 Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure, EAS: BBJ); 
 Outcomes: CHD (EUR-EAS)
@@ -30,19 +39,37 @@ a <- MultiAncestrySummarySet$new(
   radius=50000, 
   clump_pop="EAS"
 )
+a$check_phenotypes(ids=a$exposure_ids)
+a$check_phenotypes(ids=a$outcome_ids)
+
 a$extract_instruments()
-a$check_instruments()
-a$standardised_units()
 a$estimate_instrument_specificity(a$instrument_raw)
+
+a$standardised_units(exp=a$instrument_raw)
+a$estimate_instrument_specificity(a$standardised_exposure)
+
+a$make_outcome_data(exp=a$instrument_raw, p_exp=1)
+a$harmonised_dat(exp=a$instrument_raw, out=a$instrument_outcome)
+a$perform_basic_sem()
+
+
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+
+
 suppressMessages(a$extract_instrument_regions())
 a$scan_regional_instruments()
 a$plot_regional_instruments(instruments=a$instrument_maxz)
+
 a$estimate_instrument_specificity(a$instrument_maxz)
-a$extract_outcome_data(exp=a$instrument_raw, standardise = F, p_exp=1)
+a$standardised_units(exp=a$instrument_maxz)
+a$estimate_instrument_specificity(a$standardised_exposure)
+
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
 
-a$extract_outcome_data(exp=a$instrument_maxz, standardise = F, p_exp=1)
-a$perform_basic_sem()
 
 ```
 
@@ -58,32 +85,55 @@ b <- MultiAncestrySummarySet$new(
   radius=50000, 
   clump_pop="EAS"
 )
+b$check_phenotypes(ids=b$exposure_ids)
+b$check_phenotypes(ids=b$outcome_ids)
+
 b$extract_instruments()
-b$check_instruments()
 b$estimate_instrument_specificity(b$instrument_raw)
+
+b$standardised_units(exp=b$instrument_raw)
+b$estimate_instrument_specificity(b$standardised_exposure)
+
+b$make_outcome_data(exp=b$instrument_raw, p_exp=1)
+b$harmonised_dat(exp=b$instrument_raw, out=b$instrument_outcome)
+b$perform_basic_sem()
+
+
+b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
+b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
+b$perform_basic_sem()
+
+
 suppressMessages(b$extract_instrument_regions())
 b$scan_regional_instruments()
 b$plot_regional_instruments(instruments=b$instrument_maxz)
-b$estimate_instrument_specificity(b$instrument_maxz)
-b$extract_outcome_data(exp=b$instrument_raw, p_exp=1)
-b$perform_basic_sem()
 
-b$extract_outcome_data(exp=b$instrument_maxz, p_exp=1)
+b$estimate_instrument_specificity(b$instrument_maxz)
+b$standardised_units(exp=b$instrument_maxz)
+b$estimate_instrument_specificity(b$standardised_exposure)
+
+b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
+b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
 b$perform_basic_sem()
 ```
 
 
 Exposures: SBP (EAS: Systolic blood pressure, automated reading; Pan-UKB; EAS: BBJ)
-Outcomes: CHD (EUR-EAS)
+Outcomes: CHD (EAS: Pan-UKB; EAS-BBJ)
 ```r
 c <- MultiAncestrySummarySet$new(
   exposure_ids=c("ukb-e-4080_EAS", "bbj-a-52"), 
-  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  outcome_ids=c("ukb-e-6150_p5_EAS", "bbj-a-109"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
   radius=50000, 
   clump_pop="EAS"
 )
+c$check_phenotypes(ids=c$exposure_ids)
+c$check_phenotypes(ids=c$outcome_ids)
+#Unit information is missing: Run x$standardise_units()
+#Degree of agreement in instrument associations between NA and NA is NA
+#Degree of agreement in instrument associations between  and  is 
 c$extract_instruments()
 c$check_instruments()
 c$estimate_instrument_specificity(c$instrument_raw)
@@ -93,11 +143,6 @@ c$plot_regional_instruments(instruments=c$instrument_maxz)
 c$estimate_instrument_specificity(c$instrument_maxz)
 c$extract_outcome_data(exp=c$instrument_raw, standardise = T, p_exp=1)
 c$perform_basic_sem()
-#lavaan WARNING:
-#    the optimizer (NLMINB) claimed the model converged, but not all
-#    elements of the gradient are (near) zero; the optimizer may not
-#    have found a local solution use check.gradient = FALSE to skip
-#    this check.lavaan WARNING: fit measures not available if model did not converge
 c$extract_outcome_data(exp=c$instrument_maxz, standardise = T, p_exp=1)
 c$perform_basic_sem()
 
@@ -106,26 +151,38 @@ c$perform_basic_sem()
 
 Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure,EUR: EUR: Systolic blood pressure, automated reading); 
 Outcomes: CHD (EUR-EAS)
-```r
+```{r}
 c <- MultiAncestrySummarySet$new(
   exposure_ids=c("ieu-b-38", "ukb-b-19953"), 
-  outcome_ids=c("ieu-a-7", "ieu-a-7"), 
+  outcome_ids=c("ieu-a-9", "ieu-a-7"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
   radius=50000, 
   clump_pop="EAS"
 )
 c$extract_instruments()
-c$check_instruments()
 c$estimate_instrument_specificity(c$instrument_raw)
-c$extract_instrument_regions()
+
+c$standardised_units(exp=c$instrument_raw)
+c$estimate_instrument_specificity(c$standardised_exposure)
+
+c$make_outcome_data(exp=c$instrument_raw, p_exp=1)
+c$harmonised_dat(exp=c$instrument_raw, out=c$instrument_outcome)
+c$perform_basic_sem()
+
+c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
+c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
+c$perform_basic_sem()
+
+suppressMessages(c$extract_instrument_regions())
 c$scan_regional_instruments()
 c$plot_regional_instruments(instruments=c$instrument_maxz)
-c$estimate_instrument_specificity(c$instrument_maxz)
-c$extract_outcome_data(exp=c$instrument_raw, p_exp=1)
-c$perform_basic_sem()
-#Error: attempt to use zero-length variable name
 
-c$extract_outcome_data(exp=c$instrument_maxz, p_exp=1)
+c$estimate_instrument_specificity(c$instrument_maxz)
+c$standardised_units(exp=c$instrument_maxz)
+c$estimate_instrument_specificity(c$standardised_exposure)
+
+c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
+c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
 c$perform_basic_sem()
 ```

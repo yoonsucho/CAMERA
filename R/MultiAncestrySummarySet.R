@@ -16,8 +16,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   clump_pop=NULL,
   instrument_raw=NULL,
   harmonised_data_check=NULL,
-  standardised_exp=NULL,
-  standardised_out=NULL,
+  standardised_exposure=NULL,
+  standardised_outcome=NULL,
   instrument_regions = NULL,
   ld_matrices = NULL,
   susie_results = NULL,
@@ -122,7 +122,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       message("Unit information is missing: Run x$standardise_units()")
     }
     if(!any(is.na(texp$units)) & length(unique(texp$units)) != 1){
-      message("Discordant information across the population - Please see vignettes")
+      message("Units for the beta are different across the populations: See vignettes")
+      print(texp$units)
     }
     suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
     invisible(lapply(1:nrow(mr), function(i){
@@ -133,10 +134,15 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
   standardised_units = function(exp=NULL, out=NULL){
     standardised <- function(dat=NULL){
-      dat <- dat %>%
-                  dplyr::group_by(id) %>%
-                  tidyr::replace_na(list(units = "temp")) %>%
-                  dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE))
+      d <- dat %>%
+             dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
+      if(!any(d$units %in% c("log odds"))){
+          dat <- dat %>%
+                      dplyr::group_by(id) %>%
+                      tidyr::replace_na(list(units = "temp")) %>%
+                      dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
+                      dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
+      }
       if(any(!is.na(dat$estimated_sd)))
       {
         stopifnot(!any(is.na(dat$estimated_sd)))
@@ -148,10 +154,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
     if(!is.null(exp)){
       self$standardised_exposure <- standardised(dat=exp)
-    }
+      }
     if(!is.null(out)){
       self$standardised_outcome <- standardised(dat=out)
-    }
+      }
     invisible(self)
   },
 
@@ -457,56 +463,34 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' insert
 #' @param exp insert
 #' @param p_exp insert
- extract_outcome_data = function(exp=self$instrument_raw, standardise=FALSE, p_exp=1){
-    if(standardise == TRUE){
-      if(is.na(exp$units[1])){
-        exp$units[1] <- "temp"
-        }
-      estsd <- mean(TwoSampleMR::estimate_trait_sd(exp$beta, exp$se, exp$samplesize, exp$eaf), na.rm=TRUE)
-      if(!is.na(estsd))
-          {
-            stopifnot(!is.na(estsd))
-            exp$beta <- exp$beta / estsd
-            exp$se <- exp$se / estsd
-            exp$units <- "SD"
-            exp$estimated_sd <- estsd
-          }
-    }
+ make_outcome_data = function(exp=self$instrument_raw, p_exp=1){
     dx <- dplyr::inner_join(
-      subset(exp, id == self$exposure_ids[[1]]),
-      subset(exp, id == self$exposure_ids[[2]]),
-      by="rsid"
-    ) %>%
-      dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y) %>%
-      dplyr::filter(p1 < p_exp & p2 < p_exp)
-    out <- TwoSampleMR::extract_outcome_data(snps=dx$SNP, outcomes=self$outcome_ids)
+                            subset(exp, id == self$exposure_ids[[1]]),
+                            subset(exp, id == self$exposure_ids[[2]]),
+                            by="rsid"
+                            ) %>%
+          dplyr::filter(p.x < p_exp & p.y < p_exp)
+    out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids)
     out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    if(standardise == TRUE){
-      if(is.na(out$units.outcome[1])){
-        out$units.outcome[1] <- "temp"
-        }
-      estsd <- mean(TwoSampleMR::estimate_trait_sd(out$beta.outcome, out$se.outcome, out$samplesize.outcome, out$eaf.outcome), na.rm=TRUE)
-      if(!is.na(estsd))
-          {
-            stopifnot(!is.na(estsd))
-            out$beta.outcome <- out$beta.outcome / estsd
-            out$se.outcome <- out$se.outcome / estsd
-            out$units.outcome <- "SD"
-            out$estimated_sd.outcome <- estsd
-          }
-    }
-      dy <- dplyr::inner_join(
-      subset(out, id.outcome == self$outcome_ids[[1]]),
-      subset(out, id.outcome == self$outcome_ids[[2]]),
-      by="SNP"
-      ) %>%
-        dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
-    dat <- dplyr::inner_join(dx, dy, by="SNP")
     self$instrument_outcome <- out
-    self$harmonised_dat_sem <- dat
     invisible(self)
   },
 
+  harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
+    dx <- exp %>%
+              dplyr::inner_join(
+                subset(exp, id == self$exposure_ids[[1]]),
+                subset(exp, id == self$exposure_ids[[2]]),
+                by="rsid") %>%
+              dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y)
+    dy <- dplyr::inner_join(
+            subset(out, id.outcome == self$outcome_ids[[1]]),
+            subset(out, id.outcome == self$outcome_ids[[2]]),
+          by="SNP") %>%
+        dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
+    dat <- dplyr::inner_join(dx, dy, by="SNP")
+    self$harmonised_dat_sem <- dat
+  },
 
   # Generate harmonised dataset
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
