@@ -15,7 +15,8 @@ knitr::opts_chunk$set(
 
 # Call the package
 ```{r set up}
-library(MR.TRAM)
+library(devtools)
+source("MultiAncestrySummarySet.R")
 ```
 
 ```r
@@ -47,16 +48,15 @@ a$estimate_instrument_specificity(a$instrument_raw)
 
 a$standardised_units(exp=a$instrument_raw)
 a$estimate_instrument_specificity(a$standardised_exposure)
+a$check_phenotypes(ids=NULL, after_standardised=a$standardised_exposure)
 
 a$make_outcome_data(exp=a$instrument_raw, p_exp=1)
 a$harmonised_dat(exp=a$instrument_raw, out=a$instrument_outcome)
 a$perform_basic_sem()
 
-
 a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
-
 
 suppressMessages(a$extract_instrument_regions())
 a$scan_regional_instruments()
@@ -93,16 +93,15 @@ b$estimate_instrument_specificity(b$instrument_raw)
 
 b$standardised_units(exp=b$instrument_raw)
 b$estimate_instrument_specificity(b$standardised_exposure)
+b$check_phenotypes(ids=NULL, after_standardised=b$standardised_exposure)
 
 b$make_outcome_data(exp=b$instrument_raw, p_exp=1)
 b$harmonised_dat(exp=b$instrument_raw, out=b$instrument_outcome)
 b$perform_basic_sem()
 
-
 b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
 b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
 b$perform_basic_sem()
-
 
 suppressMessages(b$extract_instrument_regions())
 b$scan_regional_instruments()
@@ -150,21 +149,25 @@ c$perform_basic_sem()
 
 
 Exposures: SBP (EUR: systolic blood pressure; International Consortium of Blood Pressure,EUR: EUR: Systolic blood pressure, automated reading); 
-Outcomes: CHD (EUR-EAS)
+Outcomes: CHD (EUR-EUR)
 ```{r}
 c <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-b-38", "ukb-b-19953"), 
+  exposure_ids=c("ieu-b-38", "ukb-b-20175"), 
   outcome_ids=c("ieu-a-9", "ieu-a-7"), 
   bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
   plink = genetics.binaRies::get_plink_binary(), 
   radius=50000, 
   clump_pop="EAS"
 )
+c$check_phenotypes(ids=c$exposure_ids)
+c$check_phenotypes(ids=c$outcome_ids)
+
 c$extract_instruments()
 c$estimate_instrument_specificity(c$instrument_raw)
 
 c$standardised_units(exp=c$instrument_raw)
 c$estimate_instrument_specificity(c$standardised_exposure)
+c$check_phenotypes(ids=NULL, after_standardised=c$standardised_exposure)
 
 c$make_outcome_data(exp=c$instrument_raw, p_exp=1)
 c$harmonised_dat(exp=c$instrument_raw, out=c$instrument_outcome)

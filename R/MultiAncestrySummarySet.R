@@ -110,29 +110,42 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
-  check_phenotypes = function(ids=self$exposure_ids){
-    suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
-    suppressMessages(outcomes <- TwoSampleMR::extract_outcome_data(snps, ids))
-    suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
-    suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
-    d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    texp <- d %>% dplyr::group_by(id.outcome) %>%
+  check_phenotypes = function(ids=self$exposure_ids, after_standardised=NULL){
+    if(!is.null(ids)){
+      suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
+      suppressMessages(outcomes <- TwoSampleMR::extract_outcome_data(snps, ids))
+      suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
+      suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
+      d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+      texp <- d %>% dplyr::group_by(id.outcome) %>%
                   dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
-    if(any(is.na(texp$units))){
-      message("Unit information is missing: Run x$standardise_units()")
+      if(any(is.na(texp$units))){
+        message("Unit information is missing: Run x$standardise_units()")
+      }
+      if(!any(is.na(texp$units)) & length(unique(texp$units)) != 1){
+        message("Units for the beta are different across the populations: See vignettes")
+        print(texp$units)
+      }
+      suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
+      invisible(lapply(1:nrow(mr), function(i){
+        message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
+      }))
     }
-    if(!any(is.na(texp$units)) & length(unique(texp$units)) != 1){
-      message("Units for the beta are different across the populations: See vignettes")
-      print(texp$units)
-    }
-    suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
-    invisible(lapply(1:nrow(mr), function(i){
-      message(paste0("Degree of agreement in instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3)))
-    }))
+    if(!is.null(after_standardised)){
+      as <- dplyr::inner_join(
+                              subset(after_standardised, id == self$exposure_ids[[1]]),
+                              subset(after_standardised, id == self$exposure_ids[[2]]),
+                              by="rsid") %>% as.data.frame()
+      mr_as <- list()
+      suppressMessages(mr_as[[1]] <- TwoSampleMR::mr_ivw(as$beta.x, as$beta.y, as$se.x, as$se.y))
+      suppressMessages(mr_as[[2]] <- TwoSampleMR::mr_ivw(as$beta.y, as$beta.x, as$se.y, as$se.x))
+      message(paste0("Degree of agreement in instrument associations between ", as$id.x[1], " and ", as$id.y[1], " is ", round(mr_as[[1]]$b, 3)))
+      message(paste0("Degree of agreement in instrument associations between ", as$id.y[1], " and ", as$id.x[1], " is ", round(mr_as[[2]]$b, 3)))
+      }
     invisible(self)
     },
 
-  standardised_units = function(exp=NULL, out=NULL){
+  standardise_units = function(exp=NULL, out=NULL){
     standardised <- function(dat=NULL){
       d <- dat %>%
              dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
