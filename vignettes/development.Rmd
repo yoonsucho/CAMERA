@@ -84,7 +84,7 @@ x$check_phenotypes(ids=x$outcome_ids)
 ```
 A value close to 1 indicates that the instrument-trait associations are consistent between the populations. If the values is too low or too high, it is recommended to use other available instruments for the traits (https://gwas.mrcieu.ac.uk/). If the units for the exposures/the outcomes are different across the populations, run:
 ```{r}
-x$standardised_units(exp=x$instrument_raw, out=NULL)
+x$standardise_units(exp=x$instrument_raw, out=NULL)
 ```
 You can check the degree of agreement again using:
 ```{r}
@@ -142,7 +142,7 @@ You can also perform MR-SEM using the instruments from the Step 3.
 ```{r}
 # Get outcome data for a particular set of instruments and run SEM model 
 # Standardise the betas and SEs if required
-x$standardised_units(exp=x$instrument_maxz)
+x$standardise_units(exp=x$instrument_maxz)
 x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
 x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
 x$perform_basic_sem()
