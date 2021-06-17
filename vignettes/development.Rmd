@@ -38,7 +38,7 @@ library(MR.TRAM)
 x <- MultiAncestrySummarySet$new(
   		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
   		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  		bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/		EAS"), 		
+  		bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
   		plink = genetics.binaRies::get_plink_binary(), 		
   		radius=50000, 
   		clump_pop="EAS"
@@ -89,7 +89,6 @@ x$standardise_units(exp=x$instrument_raw, out=NULL)
 You can check the degree of agreement again using:
 ```{r}
 x$check_phenotypes(ids=NULL, after_standardised=x$standardised_exposure)
-#x$check_phenotypes(ids=NULL, after_standardised=x$standardised_exposure)
 ```
 Please note that standardisation is not required if the effect size of SNP-trait is in the unit of SD or log odds.
 

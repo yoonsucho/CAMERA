@@ -21,20 +21,26 @@ library(MR.TRAM)
 ## CRP-CHD
 ```{r}
 a <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-b-35", "bbj-a-14"), 
-  outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
+      exposure_ids=c("ieu-b-35", "bbj-a-14"),
+      outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+      pops=c("EUR", "EAS"),
+  		bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
+  		plink = genetics.binaRies::get_plink_binary(), 		
+  		radius=50000, 
+  		clump_pop="EAS"
+	)
 a$extract_instruments()
-a$check_instruments()
+a$check_phenotypes(ids=a$exposure_ids)
+a$check_phenotypes(ids=a$outcome_ids)
 a$estimate_instrument_specificity(a$instrument_raw)
+a$standardise_units(exp=a$instrument_raw, out=NULL)
+
 suppressMessages(a$extract_instrument_regions())
 a$scan_regional_instruments()
 a$plot_regional_instruments(instruments=a$instrument_maxz)
 a$estimate_instrument_specificity(a$instrument_maxz)
+a$regional_ld_matrices()
+
 a$extract_outcome_data(exp=a$instrument_raw, standardise = T, p_exp=1)
 a$perform_basic_sem()
 
@@ -91,6 +97,8 @@ c$perform_basic_sem()
 c$extract_outcome_data(exp=c$instrument_maxz, p_exp=1)
 c$perform_basic_sem()
 ```
+
+
 
 
 ## Triglyceride-BMI

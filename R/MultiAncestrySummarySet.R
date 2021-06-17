@@ -97,7 +97,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=samplesize.exposure) %>% as.data.frame
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=contains("size")) %>% as.data.frame
     # Check if top hits are significant in both populations
     t <- instrument_raw %>% dplyr::group_by(id) %>%
           dplyr::summarise(sum(p < 5e-8))
@@ -146,31 +146,44 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     },
 
   standardise_units = function(exp=NULL, out=NULL){
-    standardised <- function(dat=NULL){
-      d <- dat %>%
-             dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
-      if(!any(d$units %in% c("log odds"))){
-          dat <- dat %>%
-                      dplyr::group_by(id) %>%
-                      tidyr::replace_na(list(units = "temp")) %>%
-                      dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
-                      dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
-      }
-      if(any(!is.na(dat$estimated_sd)))
-      {
-        stopifnot(!any(is.na(dat$estimated_sd)))
-        dat$beta <- dat$beta / dat$estimated_sd
-        dat$se <- dat$se / dat$estimated_sd
-        dat$units <- "SD"
-      }
-      return(dat)
-    }
-    if(!is.null(exp)){
-      self$standardised_exposure <- standardised(dat=exp)
+      if(!is.null(exp)){
+          d <- exp %>%
+                 dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
+          if(!any(d$units %in% c("log odds"))){
+              exp <- exp %>%
+                          dplyr::group_by(id) %>%
+                          tidyr::replace_na(list(units = "temp")) %>%
+                          dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
+                          dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
+          }
+          if(any(!is.na(exp$estimated_sd)))
+          {
+            stopifnot(!any(is.na(exp$estimated_sd)))
+            exp$beta <- exp$beta / exp$estimated_sd
+            exp$se <- exp$se / exp$estimated_sd
+            exp$units <- "SD"
+          }
+          self$standardised_exposure <- exp
       }
     if(!is.null(out)){
-      self$standardised_outcome <- standardised(dat=out)
-      }
+          d <- out %>%
+            dplyr::group_by(id.outcome) %>% dplyr::summarise(units = units.outcome[1])
+          if(!any(d$units %in% c("log odds"))){
+            out <- out %>%
+              dplyr::group_by(id.outcome) %>%
+              tidyr::replace_na(list(units.outcome = "temp")) %>%
+              dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
+              dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))
+          }
+          if(any(!is.na(out$estimated_sd)))
+          {
+            stopifnot(!any(is.na(out$estimated_sd)))
+            out$beta.outcome <- out$beta.outcome / out$estimated_sd
+            out$se.outcome <- out$se.outcome / out$estimated_sd
+            out$units.outcome <- "SD"
+          }
+          self$standardised_outcome <- out
+    }
     invisible(self)
   },
 
@@ -415,17 +428,18 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     regions <- names(instrument_regions)
     ld_matrices <- lapply(regions, function(r)
     {
-      d <- instrument_regions[[1]]
+      d <- instrument_regions[[r]]
+      exp <- self$exposure_ids
       o <- lapply(1:length(self$exposure_ids), function(i)
       {
-        ld <- ieugwasr::ld_matrix(d[[self$exposure_ids[1]]]$rsid, pop=self$pops[1], bfile=self$bfiles[1], plink=self$plink, with_alleles=TRUE)
-        code1 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
-        code2 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
+        ld <- ieugwasr::ld_matrix(d[[exp[i]]]$rsid, pop=pops[i], bfile=bfiles[i], plink=self$plink, with_alleles=TRUE)
+        code1 <- paste0(d[[exp[i]]]$rsid, "_", d[[exp[i]]]$ea, "_", d[[exp[i]]]$nea)
+        code2 <- paste0(d[[exp[i]]]$rsid, "_", d[[exp[i]]]$nea, "_", d[[exp[i]]]$ea)
         rem_index <- ! (code1 %in% colnames(ld) | code2 %in% colnames(ld))
         flip_index <- ! colnames(ld) %in% code1
         if(any(rem_index))
         {
-          rem <- d[[self$exposure_ids[i]]]$rsid[rem_index]
+          rem <- d[[exp[i]]]$rsid[rem_index]
         }
         if(any(flip_index))
         {
@@ -437,10 +451,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       })
       rem <- lapply(o, function(x) x$rem) %>% unlist() %>% unique()
       o <- lapply(o, function(x) x$ld)
-      names(o) <- self$exposure_ids
-      for(i in self$exposure_ids)
+      names(o) <- exp
+      for(i in exp)
       {
-        self$instrument_regions[[r]][[i]]$ld_unavailable <- self$instrument_regions[[r]][[i]]$rsid %in% rem
+        instrument_regions[[r]][[i]]$ld_unavailable <- instrument_regions[[r]][[i]]$rsid %in% rem
       }
       o <- lapply(o, function(ld)
       {
@@ -454,11 +468,84 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
-
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
   # find credible sets that overlap - to try to determine the best SNP in a region to be used as instrument
-  susie_finemap_regions = function() {},
+ susie_finemap_regions = function(dat=self$instrument_regions, ld=self$ld_matrices)
+  {
+   resnps <- names(ld)
+   exp <- self$exposure_ids
+   susie <- lapply(1:length(resnps), function(r){
+        snp <- rownames(ld[[r]][[exp[1]]])[rownames(ld[[r]][[exp[1]]]) %in% rownames(ld[[r]][[exp[2]]])]
+        snp <- strsplit(snps[[r]], "_") %>% sapply(., function(x) x[1])
+
+        d <- lapply(1:length(exp), function(i){
+                    index <- which(dat[[r]][[i]]$rsid  %in% snp)
+                    d <- dat[[r]][[i]][index, ]
+                    return(d)
+              })
+
+        su <- lapply(1:length(exp), function(i){
+                    message("Running susie for ", exp[i])
+                    susieR::susie_rss(z=d[[i]]$beta/d[[i]]$se, R=ld[[r]][[i]])
+              })
+
+        message("Finding overlaps [", r, "/", length(resnps), "]")
+        suo <- susie_overlaps(su[[1]], su[[2]])
+
+        out <- list(
+                chr=d[[1]]$chr,
+                position=d[[1]]$position,
+                radius=self$radius,
+                a1=d[[1]],
+                a2=d[[2]],
+                su1=su[[1]],
+                su2=su[[2]],
+                suo=suo
+          )
+
+     null <- c(is.null(su[[1]]$sets$cs), is.null(su[[2]]$sets$cs))
+     if(null[1] & !null[2])
+     {
+       out$type <- "pop2"
+     } else if(null[2] & !null[1]) {
+       out$type <- "pop1"
+     } else if(!null[1] & !null[2]) {
+       out$type <- "shared"
+     } else {
+       out$type <- "drop"
+     }
+
+     if(out$type == "shared")
+     {
+       if(nrow(suo) == 0)
+       {
+         out$cs_overlap <- FALSE
+         temp <- dplyr::inner_join(d[[1]], d[[2]], by="rsid") %>%
+           dplyr::mutate(pvalrank = rank(p.x) / nrow(d[[1]]) + rank(p.y) / nrow(d[[1]])) %>%
+           dplyr::arrange(pvalrank)
+         out$bestsnp <- temp$rsid[1]
+       } else {
+         out$cs_overlap <- TRUE
+         out$bestsnp <- d[[1]]$rsid[suo$v[1]]
+       }
+     }
+
+     if(out$type == "pop1")
+     {
+       out$cs_overlap <- FALSE
+       out$bestsnp <- d[[1]] %>% dplyr::arrange(p) %>% {.$rsid[1]}
+     }
+     if(out$type == "pop2")
+     {
+       out$cs_overlap <- FALSE
+       out$bestsnp <- d[[2]] %>% dplyr::arrange(p) %>% {.$rsid[1]}
+     }
+     return(out)
+   })
+   self$susie_results <- susie
+   invisible(self)
+  },
 
   # PAINTOR allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
@@ -597,12 +684,12 @@ susie_overlaps <- function(su1, su2)
       {
         ind <- s1[[i]] %in% s2[[j]]
         v <- s1[[i]][ind]
-        l[[k]] <- tibble(s1=i, s2=j, v = v)
+        l[[k]] <- tibble::tibble(s1=i, s2=j, v = v)
         k <- k + 1
       }
     }
   }
-  l <- bind_rows(l)
+  l <- dplyr::bind_rows(l)
   if(nrow(l) > 0)
   {
     l$pip1 <- su1$pip[l$v]
