@@ -97,7 +97,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=samplesize.exposure) %>% as.data.frame
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=sample_size) %>% as.data.frame
     # Check if top hits are significant in both populations
     t <- instrument_raw %>% dplyr::group_by(id) %>%
           dplyr::summarise(sum(p < 5e-8))
@@ -416,16 +416,17 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     ld_matrices <- lapply(regions, function(r)
     {
       d <- instrument_regions[[1]]
+      exp <- self$exposure_ids 
       o <- lapply(1:length(self$exposure_ids), function(i)
       {
-        ld <- ieugwasr::ld_matrix(d[[self$exposure_ids[1]]]$rsid, pop=self$pops[1], bfile=self$bfiles[1], plink=self$plink, with_alleles=TRUE)
-        code1 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
-        code2 <- paste0(d[[self$exposure_ids[i]]]$rsid, "_", d[[self$exposure_ids[i]]]$ea, "_", d[[self$exposure_ids[i]]]$nea)
+        ld <- ieugwasr::ld_matrix(d[[exp[i]]]$rsid, pop=pops[i], bfile=bfiles[i], plink=self$plink, with_alleles=TRUE)
+        code1 <- paste0(d[[exp[i]]]$rsid, "_", d[[exp[i]]]$ea, "_", d[[exp[i]]]$nea)
+        code2 <- paste0(d[[exp[i]]]$rsid, "_", d[[exp[i]]]$nea, "_", d[[exp[i]]]$ea)
         rem_index <- ! (code1 %in% colnames(ld) | code2 %in% colnames(ld))
         flip_index <- ! colnames(ld) %in% code1
         if(any(rem_index))
         {
-          rem <- d[[self$exposure_ids[i]]]$rsid[rem_index]
+          rem <- d[[exp[i]]]$rsid[rem_index]
         }
         if(any(flip_index))
         {
@@ -437,8 +438,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       })
       rem <- lapply(o, function(x) x$rem) %>% unlist() %>% unique()
       o <- lapply(o, function(x) x$ld)
-      names(o) <- self$exposure_ids
-      for(i in self$exposure_ids)
+      names(o) <- exp
+      for(i in exp)
       {
         self$instrument_regions[[r]][[i]]$ld_unavailable <- self$instrument_regions[[r]][[i]]$rsid %in% rem
       }
@@ -454,11 +455,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
-
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
   # find credible sets that overlap - to try to determine the best SNP in a region to be used as instrument
-  susie_finemap_regions = function() {},
+ susie_finemap_regions = function(instrument=self$instrument_raw, ld=self$ld_matrices)
+  {
+    
+  },
 
   # PAINTOR allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
