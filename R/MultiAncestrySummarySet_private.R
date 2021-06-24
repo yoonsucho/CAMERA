@@ -1,0 +1,65 @@
+MultiAncestrySummarySet$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, alpha)
+{
+  p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
+  p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
+  p_rep <- pnorm(abs(b_rep)/se_rep, lower.tail=FALSE)
+  res <- dplyr::tibble(
+    nsnp=length(b_disc),
+    metric=c("Sign", "Sign", "P-value", "P-value"),
+    datum=c("Expected", "Observed", "Expected", "Observed"),
+    value=c(sum(p_sign, na.rm=TRUE), sum(sign(b_disc) == sign(b_rep)), sum(p_sig, na.rm=TRUE), sum(p_rep < alpha, na.rm=TRUE))
+  )
+  return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
+})
+
+
+MultiAncestrySummarySet$set("private", "susie_overlaps", function(su1, su2)
+{
+  l <- list()
+  k <- 1
+  s1 <- su1$sets$cs
+  s2 <- su2$sets$cs
+  for(i in 1:length(s1))
+  {
+    for(j in 1:length(s2))
+    {
+      if(any(s1[[i]] %in% s2[[j]]))
+      {
+        ind <- s1[[i]] %in% s2[[j]]
+        v <- s1[[i]][ind]
+        l[[k]] <- tibble::tibble(s1=i, s2=j, v = v)
+        k <- k + 1
+      }
+    }
+  }
+  l <- dplyr::bind_rows(l)
+  if(nrow(l) > 0)
+  {
+    l$pip1 <- su1$pip[l$v]
+    l$pip2 <- su2$pip[l$v]
+    l$piprank1 <- rank(-su1$pip)[l$v] / length(su1$pip)
+    l$piprank2 <- rank(-su2$pip)[l$v] / length(su2$pip)
+    l <- l %>%
+      dplyr::mutate(piprank=piprank1 + piprank2) %>%
+      dplyr::arrange(piprank)
+  }
+  return(l)
+})
+
+
+MultiAncestrySummarySet$set("private", "runsem", function(model, data, modname)
+{
+  mod <- lavaan::sem(model, data=data)
+  invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
+  o <- tibble::tibble(
+                      Methods=modname,
+                      pop=1:2,
+                      bivhat=mod$PE$est[1:2],
+                      se=mod$PE$se[1:2],
+                      pval=mod$PE$pvalue[1:2],
+                      aic=mod$FIT['aic']
+                    ) %>%  dplyr::mutate(pop = as.character(pop))
+  return(o)
+}
+)
+

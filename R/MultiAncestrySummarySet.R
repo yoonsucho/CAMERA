@@ -25,6 +25,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   expected_replications = NULL,
   instrument_region_zscores = NULL,
   instrument_maxz = NULL,
+  instrument_susie = NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
@@ -277,7 +278,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       {
         n <- subset(instrument, id == j & rsid %in% m$rsid)
         o <- n %>%
-          {self$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
+          {private$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
         o$res <- o$res %>%
           dplyr::mutate(discovery=i, replication=j) %>%
           dplyr::select(discovery, replication, dplyr::everything())
@@ -299,28 +300,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
     self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% dplyr::bind_rows()
     return(self$instrument_specificity_summary)
-  },
-
-
-#' @description
-#' insert
-#' @param b_disc insert
-#' @param b_rep insert
-#' @param se_disc insert
-#' @param se_rep insert
-#' @param alpha insert
- prop_overlap = function(b_disc, b_rep, se_disc, se_rep, alpha)
-  {
-    p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
-    p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
-    p_rep <- pnorm(abs(b_rep)/se_rep, lower.tail=FALSE)
-    res <- dplyr::tibble(
-      nsnp=length(b_disc),
-      metric=c("Sign", "Sign", "P-value", "P-value"),
-      datum=c("Expected", "Observed", "Expected", "Observed"),
-      value=c(sum(p_sign, na.rm=TRUE), sum(sign(b_disc) == sign(b_rep)), sum(p_sig, na.rm=TRUE), sum(p_rep < alpha, na.rm=TRUE))
-    )
-    return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
   },
 
 
@@ -426,7 +405,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
 
     regions <- names(instrument_regions)
-    ld_matrices <- lapply(regions, function(r)
+    ld_matrices <- lapply(regions, function(r) {tryCatch(
     {
       d <- instrument_regions[[r]]
       exp <- self$exposure_ids
@@ -462,6 +441,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         ld[! rs %in% rem, ! rs %in% rem]
       })
       return(o)
+    } , error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
     names(ld_matrices) <- regions
     self$ld_matrices <- ld_matrices
@@ -475,9 +455,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   {
    resnps <- names(ld)
    exp <- self$exposure_ids
-   susie <- lapply(1:length(resnps), function(r){
+   susie <- lapply(1:length(resnps), function(r) {tryCatch({
         snp <- rownames(ld[[r]][[exp[1]]])[rownames(ld[[r]][[exp[1]]]) %in% rownames(ld[[r]][[exp[2]]])]
-        snp <- strsplit(snps[[r]], "_") %>% sapply(., function(x) x[1])
+        snp <- strsplit(snp, "_") %>% sapply(., function(x) x[1])
 
         d <- lapply(1:length(exp), function(i){
                     index <- which(dat[[r]][[i]]$rsid  %in% snp)
@@ -491,7 +471,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
               })
 
         message("Finding overlaps [", r, "/", length(resnps), "]")
-        suo <- susie_overlaps(su[[1]], su[[2]])
+        suo <- private$susie_overlaps(su[[1]], su[[2]])
 
         out <- list(
                 chr=d[[1]]$chr,
@@ -542,8 +522,24 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
        out$bestsnp <- d[[2]] %>% dplyr::arrange(p) %>% {.$rsid[1]}
      }
      return(out)
+    } , error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
    })
    self$susie_results <- susie
+
+   susie <- susie[!sapply(susie, is.null)]
+   o <- lapply(1:length(susie), function(r) {susie[[r]]$bestsnp}) %>% unlist()
+   instrument_susie <- lapply(resnps, function(r){
+     lapply(exp, function(id){
+       dat[[r]][[id]] %>% subset(., rsid %in% o) %>%
+                        dplyr::bind_rows() %>%
+                        dplyr::arrange(id, chr, position)
+     })}) %>% dplyr::bind_rows() %>% as.data.frame()
+
+   t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
+     dplyr::select(id, units, samplesize)
+   instrument_susie <- dplyr::left_join(instrument_susie, t, by = "id") %>% as.data.frame()
+   instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i)}) %>% dplyr::bind_rows()
+   self$instrument_susie <- instrument_susie
    invisible(self)
   },
 
@@ -616,41 +612,27 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
                   {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
-  runsem <- function(model, data, modname)
-        {
-          mod <- lavaan::sem(model, data=data)
-          invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
-          tibble::tibble(
-                Methods=modname,
-                pop=1:2,
-                bivhat=mod$PE$est[1:2],
-                se=mod$PE$se[1:2],
-                pval=mod$PE$pvalue[1:2],
-                aic=mod$FIT['aic']
-              ) %>%  dplyr::mutate(pop = as.character(pop))
-        }
+    out$semA <- private$runsem('
+                               y1 ~ biv*x1
+                               y2 ~ biv*x2
+                               ', d, "UnweightedSEMa")[1, ] %>%
+                              dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
 
-    out$semA <- runsem('
-                       y1 ~ biv*x1
-                       y2 ~ biv*x2
-                       ', d, "UnweightedSEMa")[1, ] %>%
-                      dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
+    out$semB <- private$runsem('
+                                 y1 ~ biv_1*x1
+                                 y2 ~ biv_2*x2
+                                 ', d, "UnweightedSEMb")
 
-    out$semB <- runsem('
-                       y1 ~ biv_1*x1
-                       y2 ~ biv_2*x2
-                       ', d, "UnweightedSEMb")
+    out$modC <- private$runsem('
+                               o1 ~ biv*w1
+                               o2 ~ biv*w2
+                               ', d, "RadialSEMa")[1, ] %>%
+                              dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
 
-    out$modC <- runsem('
-                       o1 ~ biv*w1
-                       o2 ~ biv*w2
-                       ', d, "RadialSEMa")[1, ] %>%
-                      dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
-
-    out$modD <- runsem('
-                       o1 ~ biv_1*w1
-                       o2 ~ biv_2*w2
-                       ', d, "RadialSEMb")
+    out$modD <- private$runsem('
+                                 o1 ~ biv_1*w1
+                                 o2 ~ biv_2*w2
+                                 ', d, "RadialSEMb")
 
     invisible(self$sem_result <- out %>% dplyr::bind_rows())
     print(self$sem_result)
@@ -670,38 +652,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
 
 
-susie_overlaps <- function(su1, su2)
-{
-  l <- list()
-  k <- 1
-  s1 <- su1$sets$cs
-  s2 <- su2$sets$cs
-  for(i in 1:length(s1))
-  {
-    for(j in 1:length(s2))
-    {
-      if(any(s1[[i]] %in% s2[[j]]))
-      {
-        ind <- s1[[i]] %in% s2[[j]]
-        v <- s1[[i]][ind]
-        l[[k]] <- tibble::tibble(s1=i, s2=j, v = v)
-        k <- k + 1
-      }
-    }
-  }
-  l <- dplyr::bind_rows(l)
-  if(nrow(l) > 0)
-  {
-    l$pip1 <- su1$pip[l$v]
-    l$pip2 <- su2$pip[l$v]
-    l$piprank1 <- rank(-su1$pip)[l$v] / length(su1$pip)
-    l$piprank2 <- rank(-su2$pip)[l$v] / length(su2$pip)
-    l <- l %>%
-      dplyr::mutate(piprank=piprank1 + piprank2) %>%
-      dplyr::arrange(piprank)
-  }
-  return(l)
-}
 
 
 greedy_remove <- function(r, thresh)
@@ -760,7 +710,7 @@ susie_finemap_region <- function(chr, position, radius, id1, id2, plink=NULL, bf
   su2 <- susieR::susie_rss(z=a2$x$beta.exposure / a2$x$se.exposure, R=a2$ld, check_R=FALSE)
 
   message("Finding overlaps")
-  suo <- susie_overlaps(su1, su2)
+  suo <- private$susie_overlaps(su1, su2)
   out <- list(
     chr=chr,
     position=position,

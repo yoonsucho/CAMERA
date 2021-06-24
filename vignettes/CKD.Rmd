@@ -61,6 +61,16 @@ a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$standardise_units(exp=NULL, out=a$instrument_outcome)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$standardised_outcome)
 a$perform_basic_sem()
+
+##susie
+a$regional_ld_matrices()
+a$susie_finemap_regions()
+a$estimate_instrument_specificity(a$instrument_susie)
+a$standardise_units(exp=a$instrument_susie)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$standardise_units(exp=NULL, out=a$instrument_outcome)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$standardised_outcome)
+a$perform_basic_sem()
 ```
 
 
@@ -108,6 +118,17 @@ b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
 b$standardise_units(exp=NULL, out=b$instrument_outcome)
 b$harmonised_dat(exp=b$standardised_exposure, out=b$standardised_outcome)
 b$perform_basic_sem()
+
+##susie
+b$regional_ld_matrices()
+b$susie_finemap_regions()
+b$estimate_instrument_specificity(b$instrument_susie)
+b$standardise_units(exp=b$instrument_susie)
+b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
+b$standardise_units(exp=NULL, out=b$instrument_outcome)
+b$harmonised_dat(exp=b$standardised_exposure, out=b$standardised_outcome)
+b$perform_basic_sem()
+
 ```
 
 
@@ -149,6 +170,16 @@ suppressMessages(c$extract_instrument_regions())
 c$scan_regional_instruments()
 c$estimate_instrument_specificity(c$instrument_maxz)
 c$standardise_units(exp=c$instrument_maxz)
+c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
+c$standardise_units(exp=NULL, out=c$instrument_outcome)
+c$harmonised_dat(exp=c$standardised_exposure, out=c$standardised_outcome)
+c$perform_basic_sem()
+
+##susie
+c$regional_ld_matrices()
+c$susie_finemap_regions()
+c$estimate_instrument_specificity(c$instrument_susie)
+c$standardise_units(exp=c$instrument_susie)
 c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
 c$standardise_units(exp=NULL, out=c$instrument_outcome)
 c$harmonised_dat(exp=c$standardised_exposure, out=c$standardised_outcome)
@@ -197,6 +228,16 @@ d$make_outcome_data(exp=d$standardised_exposure, p_exp=1)
 d$standardise_units(exp=NULL, out=d$instrument_outcome)
 d$harmonised_dat(exp=d$standardised_exposure, out=d$standardised_outcome)
 d$perform_basic_sem()
+
+##susie
+d$regional_ld_matrices()
+d$susie_finemap_regions()
+d$estimate_instrument_specificity(d$instrument_susie)
+d$standardise_units(exp=d$instrument_susie)
+d$make_outcome_data(exp=d$standardised_exposure, p_exp=1)
+d$standardise_units(exp=NULL, out=d$instrument_outcome)
+d$harmonised_dat(exp=d$standardised_exposure, out=d$standardised_outcome)
+d$perform_basic_sem()
 ```
 
 ## lipoprotein A
@@ -241,6 +282,16 @@ e$make_outcome_data(exp=e$standardised_exposure, p_exp=1)
 e$standardise_units(exp=NULL, out=e$instrument_outcome)
 e$harmonised_dat(exp=e$standardised_exposure, out=e$standardised_outcome)
 e$perform_basic_sem()
+
+##susie
+e$regional_ld_matrices()
+e$susie_finemap_regions()
+e$estimate_instrument_specificity(e$instrument_susie)
+e$standardise_units(exp=e$instrument_susie)
+e$make_outcome_data(exp=e$standardised_exposure, p_exp=1)
+e$standardise_units(exp=NULL, out=e$instrument_outcome)
+e$harmonised_dat(exp=e$standardised_exposure, out=e$standardised_outcome)
+e$perform_basic_sem()
 ```
 
 ## type 2 diabetes (T2D)
@@ -281,6 +332,16 @@ suppressMessages(f$extract_instrument_regions())
 f$scan_regional_instruments()
 f$estimate_instrument_specificity(f$instrument_maxz)
 f$standardise_units(exp=f$instrument_maxz)
+f$make_outcome_data(exp=f$standardised_exposure, p_exp=1)
+f$standardise_units(exp=NULL, out=f$instrument_outcome)
+f$harmonised_dat(exp=f$standardised_exposure, out=f$standardised_outcome)
+f$perform_basic_sem()
+
+##susie
+f$regional_ld_matrices()
+f$susie_finemap_regions()
+f$estimate_instrument_specificity(f$instrument_susie)
+f$standardise_units(exp=f$instrument_susie)
 f$make_outcome_data(exp=f$standardised_exposure, p_exp=1)
 f$standardise_units(exp=NULL, out=f$instrument_outcome)
 f$harmonised_dat(exp=f$standardised_exposure, out=f$standardised_outcome)
