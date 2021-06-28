@@ -38,6 +38,7 @@ library(MR.TRAM)
 x <- MultiAncestrySummarySet$new(
   		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
   		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  		pops = c("EUR", "EAS"),
   		bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
   		plink = genetics.binaRies::get_plink_binary(), 		
   		radius=50000, 
@@ -104,7 +105,7 @@ The following functions will identify region that includes the original instrume
 
 ```{r, fig.width = 7, fig.height = 6, out.width = "700px", out.height="600px", dpi=300}
 # Identify regions that include the instruments
-x$extract_instrument_regions()
+suppressMessages(x$extract_instrument_regions())
 
 # Extract instrument from identified region by searching across region for best associations
 x$scan_regional_instruments()
@@ -132,7 +133,7 @@ x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
 x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
 ```
 
-### Step 5. Perform MR using genomic structural equation model (MR-SEM)
+### Step 6. Perform MR using genomic structural equation model (MR-SEM)
 ```{r}
 x$perform_basic_sem()
 ```
@@ -148,3 +149,13 @@ x$perform_basic_sem()
 ```
 
 
+### Extract SNPs based on fine-mapping
+```{r}
+suppressWarnings(x$regional_ld_matrices())
+suppressWarnings(x$susie_finemap_regions())
+x$estimate_instrument_specificity(x$instrument_susie)
+x$standardise_units(exp=x$instrument_susie)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```

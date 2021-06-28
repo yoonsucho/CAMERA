@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Call the package
+## Call the package
 ```{r set up}
 library(devtools)
 load_all()

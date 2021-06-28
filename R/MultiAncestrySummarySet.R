@@ -420,6 +420,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         {
           rem <- d[[exp[i]]]$rsid[rem_index]
         }
+        if(!any(rem_index))
+        {
+          rem <- NULL
+        }
         if(any(flip_index))
         {
           message("Flipping ", sum(flip_index))
@@ -428,12 +432,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         }
         return(list(ld=ld, rem=rem))
       })
+
       rem <- lapply(o, function(x) x$rem) %>% unlist() %>% unique()
       o <- lapply(o, function(x) x$ld)
       names(o) <- exp
       for(i in exp)
       {
-        instrument_regions[[r]][[i]]$ld_unavailable <- instrument_regions[[r]][[i]]$rsid %in% rem
+        instrument_regions[[1]][[i]]$ld_unavailable <- instrument_regions[[1]][[i]]$rsid %in% rem
       }
       o <- lapply(o, function(ld)
       {

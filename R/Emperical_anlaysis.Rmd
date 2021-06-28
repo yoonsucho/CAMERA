@@ -35,8 +35,9 @@ Outcomes: CHD (EUR-EAS)
 a <- MultiAncestrySummarySet$new(
   exposure_ids=c("ieu-b-38", "bbj-a-52"), 
   outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
+  pops=c("EUR", "EAS"),
+  bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
+  plink = genetics.binaRies::get_plink_binary(), 		
   radius=50000, 
   clump_pop="EAS"
 )
