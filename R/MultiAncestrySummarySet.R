@@ -659,124 +659,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
 
 
-greedy_remove <- function(r, thresh)
-{
-  diag(r) <- 0
-  r <- abs(r)
-  flag <- 1
-  rem <- c()
-  nom <- colnames(r)
-  while(flag == 1)
-  {
-    count <- apply(r, 2, function(x) sum(x >= thresh))
-    if(any(count > 0))
-    {
-      worst <- which.max(count)[1]
-      rem <- c(rem, names(worst))
-      r <- r[-worst,-worst]
-    } else {
-      flag <- 0
-    }
-  }
-  return(which(nom %in% rem))
-}
 
-susie_finemap_region <- function(chr, position, radius, id1, id2, plink=NULL, bfile1=NULL, bfile2=NULL, pop1=NULL, pop2=NULL)
-{
-  r <- paste0(chr, ":", max(0, position-radius), "-", position+radius)
-  message("Analysing ", r)
-  message("Extracting summary data and LD for ", id1)
-  a1 <- ieugwasr::associations(r, id1) %>%
-    dplyr::arrange(position) %>%
-    dplyr::filter(!duplicated(rsid)) %>%
-    gwasglue::ieugwasr_to_TwoSampleMR(.)
-  a1 <- TwoSampleMR::harmonise_ld_dat(a1, suppressMessages(suppressWarnings(ieugwasr::ld_matrix(a1$SNP, pop=pop1, plink=plink, bfile=bfile1, with_alleles=TRUE))))
-  message("Extracting summary data and LD for ", id2)
-  a2 <- ieugwasr::associations(r, id2) %>%
-    dplyr::arrange(position) %>%
-    dplyr::filter(!duplicated(rsid)) %>%
-    gwasglue::ieugwasr_to_TwoSampleMR(.)
-  a2 <- TwoSampleMR::harmonise_ld_dat(a2, suppressMessages(suppressWarnings(ieugwasr::ld_matrix(a2$SNP, pop=pop2, plink=plink, bfile=bfile2, with_alleles=TRUE))))
 
-  snps <- a1$x$SNP[a1$x$SNP %in% a2$x$SNP]
-  message(length(snps), " variants in common")
-  index1 <- which(a1$x$SNP %in% snps)
-  index2 <- which(a2$x$SNP %in% snps)
-  a1$x <- a1$x[index1,]
-  a1$ld <- a1$ld[index1, index1]
-  a2$x <- a2$x[index2,]
-  a2$ld <- a2$ld[index2, index2]
-
-  stopifnot(all(a1$x$SNP == a2$x$SNP))
-
-  message("Running susie for ", id1)
-  su1 <- susieR::susie_rss(z=a1$x$beta.exposure / a1$x$se.exposure, R=a1$ld, check_R=FALSE)
-  message("Running susie for ", id2)
-  su2 <- susieR::susie_rss(z=a2$x$beta.exposure / a2$x$se.exposure, R=a2$ld, check_R=FALSE)
-
-  message("Finding overlaps")
-  suo <- private$susie_overlaps(su1, su2)
-  out <- list(
-    chr=chr,
-    position=position,
-    radius=radius,
-    a1=a1$x,
-    a2=a2$x,
-    su1=su1,
-    su2=su2,
-    suo=suo
-  )
-
-  null <- c(is.null(su1$sets$cs), is.null(su2$sets$cs))
-  if(null[1] & !null[2])
-  {
-    out$type <- "pop2"
-  } else if(null[2] & !null[1]) {
-    out$type <- "pop1"
-  } else if(!null[1] & !null[2]) {
-    out$type <- "shared"
-  } else {
-    out$type <- "drop"
-  }
-
-  if(out$type == "shared")
-  {
-    if(nrow(suo) == 0)
-    {
-      out$cs_overlap <- FALSE
-      temp <- dplyr::inner_join(a1$x, a2$x, by="SNP") %>%
-        dplyr::mutate(pvalrank = rank(pval.exposure.x) / nrow(a1$x) + rank(pval.exposure.y) / nrow(a1$x)) %>%
-        dplyr::arrange(pvalrank)
-      out$bestsnp <- temp$SNP[1]
-    } else {
-      out$cs_overlap <- TRUE
-      out$bestsnp <- a1$x$SNP[suo$v[1]]
-    }
-  }
-
-  if(out$type == "pop1")
-  {
-    out$cs_overlap <- FALSE
-    out$bestsnp <- a1$x %>% dplyr::arrange(pval.exposure) %>% {.$SNP[1]}
-  }
-  if(out$type == "pop2")
-  {
-    out$cs_overlap <- FALSE
-    out$bestsnp <- a2$x %>% dplyr::arrange(pval.exposure) %>% {.$SNP[1]}
-  }
-  return(out)
-}
-
-plot_region <- function(region)
-{
-  lapply(list(region$a1, region$a2), function(x)
-    x %>%
-      dplyr::select(pval.exposure, position.exposure, id.exposure)
-  ) %>% dplyr::bind_rows() %>%
-    ggplot2::ggplot(., ggplot2::aes(x=position.exposure, y=-log10(pval.exposure))) +
-    ggplot2::geom_point() +
-    ggplot2::facet_grid(id.exposure ~ .)
-}
 
 #' Analyse regional data with PAINTOR
 #'
@@ -786,25 +670,43 @@ plot_region <- function(region)
 #'
 #' @export
 #' @return Results table with posterior inclusion probabilities
-run_PAINTOR <- function(regiondata, PAINTOR="PAINTOR", workdir=tempdir())
+run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAINTOR="PAINTOR", workdir=tempdir())
 {
-  nid <- length(regiondata)
-  snps <- regiondata[[1]]$x$SNP
+  id <- self$exposure_ids
+  nid <- length(region)
+  snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
   zs <- lapply(1:nid, function(i)
-  {
-    o <- list()
-    o[[paste0("ZSCORE.P", i)]] <- regiondata[[i]]$x$beta.exposure / regiondata[[i]]$x$se.exposure
-    return(as_tibble(o))
-  }) %>% bind_cols()
+        {
+          o <- list()
+          lapply(1:length(id), function(id){
+          o[[paste0("ZSCORE.P", id)]]<- region[[i]][[id]]$beta / region[[i]][[id]]$se
+          return(tibble::as_tibble(o))
+         }) %>% dplyr::bind_cols()
+    })
 
-  locus <- tibble(CHR = regiondata[[1]]$x$chr.exposure, POS = regiondata[[1]]$x$position.exposure, RSID = regiondata[[1]]$x$SNP) %>%
-    bind_cols(., zs)
-  write.table(locus, file=file.path(workdir, "Locus1"), row=F, col=T, qu=F)
+  locus <- lapply(1:nid, function(i)
+          {
+              l <- list()
+              l <- tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
+              l <- l %>% dplyr::bind_cols(., zs[[i]])
+              return(l)
+          })
+
+  anno <- lapply(1:nid, function(i)
+           {tibble(null=rep(1, length(snps[[i]])))})
+
+  #write.files
   lapply(1:nid, function(i)
   {
-    write.table(regiondata[[i]]$ld, file=file.path(workdir, paste0("Locus1.LD", i)), row=FALSE, col=FALSE, qu=FALSE)
+    write.table(locus[[i]], file=file.path(workdir, "Locus", i), row=F, col=T, qu=F)
+    write.table(anno[[i]], file=file.path(workdir, "Locus.annotations", i), row=F, col=T, qu=F)
+
+    lapply(1:length(id), function(i)
+    {
+      write.table(ld[[i]][[id]], file=file.path(workdir, paste0("Locus", i, ".LD", id)), row=FALSE, col=FALSE, qu=FALSE)
+    })
   })
-  write.table(tibble(null=rep(1, length(snps))), file=file.path(workdir, "Locus1.annotations"), row=F, col=T, qu=F)
+
 
   write.table(c("Locus1"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
 

@@ -60,6 +60,27 @@ MultiAncestrySummarySet$set("private", "runsem", function(model, data, modname)
                       aic=mod$FIT['aic']
                     ) %>%  dplyr::mutate(pop = as.character(pop))
   return(o)
-}
-)
+})
 
+
+MultiAncestrySummarySet$set("private", "greedy_remove", function(r, thresh)
+{
+  diag(r) <- 0
+  r <- abs(r)
+  flag <- 1
+  rem <- c()
+  nom <- colnames(r)
+  while(flag == 1)
+  {
+    count <- apply(r, 2, function(x) sum(x >= thresh))
+    if(any(count > 0))
+    {
+      worst <- which.max(count)[1]
+      rem <- c(rem, names(worst))
+      r <- r[-worst,-worst]
+    } else {
+      flag <- 0
+    }
+  }
+  return(which(nom %in% rem))
+})
