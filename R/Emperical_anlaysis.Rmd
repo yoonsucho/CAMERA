@@ -36,11 +36,12 @@ a <- MultiAncestrySummarySet$new(
   exposure_ids=c("ieu-b-38", "bbj-a-52"), 
   outcome_ids=c("ieu-a-7", "bbj-a-109"), 
   pops=c("EUR", "EAS"),
-  bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
+  bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
   plink = genetics.binaRies::get_plink_binary(), 		
   radius=50000, 
   clump_pop="EAS"
 )
+
 a$check_phenotypes(ids=a$exposure_ids)
 a$check_phenotypes(ids=a$outcome_ids)
 

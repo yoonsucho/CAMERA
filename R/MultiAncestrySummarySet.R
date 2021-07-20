@@ -676,44 +676,50 @@ run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAI
   nid <- length(region)
   snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
   zs <- lapply(1:nid, function(i)
-        {
-          o <- list()
-          lapply(1:length(id), function(id){
-          o[[paste0("ZSCORE.P", id)]]<- region[[i]][[id]]$beta / region[[i]][[id]]$se
-          return(tibble::as_tibble(o))
-         }) %>% dplyr::bind_cols()
-    })
+  {
+    o <- list()
+    lapply(1:length(id), function(id){
+      o[[paste0("ZSCORE.P", id)]]<- region[[i]][[id]]$beta / region[[i]][[id]]$se
+      return(tibble::as_tibble(o))
+    }) %>% dplyr::bind_cols()
+  })
 
   locus <- lapply(1:nid, function(i)
-          {
-              l <- list()
-              l <- tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
-              l <- l %>% dplyr::bind_cols(., zs[[i]])
-              return(l)
-          })
+  {
+    l <- list()
+    l <- tibble::tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
+    l <- l %>% dplyr::bind_cols(., zs[[i]])
+    return(l)
+  })
 
-  anno <- lapply(1:nid, function(i)
-           {tibble(null=rep(1, length(snps[[i]])))})
+  anno <- lapply(1:nid, function(i){tibble::tibble(Coding=rep(1, length(snps[[i]])))})
 
   #write.files
   lapply(1:nid, function(i)
   {
-    write.table(locus[[i]], file=file.path(workdir, "Locus", i), row=F, col=T, qu=F)
-    write.table(anno[[i]], file=file.path(workdir, "Locus.annotations", i), row=F, col=T, qu=F)
+    write.table(locus[i], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
+    write.table(anno[[i]], file=file.path(workdir, paste0("Locus", i, ".annotations")), row=F, col=T, qu=F)
 
-    lapply(1:length(id), function(i)
+    lapply(1:length(id), function(id)
     {
       write.table(ld[[i]][[id]], file=file.path(workdir, paste0("Locus", i, ".LD", id)), row=FALSE, col=FALSE, qu=FALSE)
     })
   })
 
+  write.table(paste("Locus", 1:nid), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
 
-  write.table(c("Locus1"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
+  write.table(c("Locus2"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
 
-  LDname <- paste(paste0("LD", 1:nid), collapse=",")
-  Zhead <- paste(names(zs), collapse=',')
-  glue("{PAINTOR} -input {file.path(workdir,'input.files')} -Zhead {Zhead} -LDname {LDname} -in {workdir} -out {workdir} -mcmc -annotations null") %>%
-    system()
+
+  LDname <- lapply(1:nid, function(i) {paste0("LD", "1", ",", "LD", "2")})
+  Zhead <- paste(names(zs[[1]]), collapse=',')
+
+
+  PAINTOR="/Users/yc16575/PAINTOR_V3.0/PAINTOR"
+  glue::glue("{PAINTOR} -input input.files -Zhead {Zhead} -LDname {LDname[[1]]} -in {workdir}/ -out {workdir}/ -mcmc -annotations null") %>% system()
+
+ # /Users/yc16575/PAINTOR_V3.0/PAINTOR -input input.files -Zhead  ZSCORE.P1,ZSCORE.P2 -LDname LD1,LD2 - in /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -out /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -enumerate 2 - annotiations null
+
   res <- data.table::fread(file.path(workdir, "Locus1.results"))
   unlink(workdir)
   return(res)
