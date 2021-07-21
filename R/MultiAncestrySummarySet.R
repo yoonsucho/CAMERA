@@ -26,6 +26,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_region_zscores = NULL,
   instrument_maxz = NULL,
   instrument_susie = NULL,
+  instrument_paintor = NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
@@ -689,16 +690,21 @@ run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAI
     l <- list()
     l <- tibble::tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
     l <- l %>% dplyr::bind_cols(., zs[[i]])
-    return(l)
+    ldsnp <- strsplit(rownames(ld[[i]][[1]]), "_") %>% sapply(., function(x) x[1])
+    snp <- l$RSID %in% ldsnp
+    index <- which(l$RSID %in% ldsnp)
+    d <- l[index, ]
+    return(d)
   })
 
-  anno <- lapply(1:nid, function(i){tibble::tibble(Coding=rep(1, length(snps[[i]])))})
+  anno <- lapply(1:nid, function(i){tibble::tibble(null=rep(1, nrow(locus[[i]])))})
 
   #write.files
   lapply(1:nid, function(i)
   {
-    write.table(locus[i], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
+    write.table(locus[i][[1]], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
     write.table(anno[[i]], file=file.path(workdir, paste0("Locus", i, ".annotations")), row=F, col=T, qu=F)
+    write.table(paste0("Locus", i), file=file.path(workdir, paste0("input.files", i)), row=F, col=F, qu=F)
 
     lapply(1:length(id), function(id)
     {
@@ -706,23 +712,50 @@ run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAI
     })
   })
 
-  write.table(paste("Locus", 1:nid), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
+  #write.table(paste0("Locus", 1:nid), file=file.path(workdir, paste0("input.files", i), row=F, col=F, qu=F)
+  #write.table(c("Locus1", "Locus2"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
 
-  write.table(c("Locus2"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
 
-
-  LDname <- lapply(1:nid, function(i) {paste0("LD", "1", ",", "LD", "2")})
+  LDname <- paste0("LD", "1", ",", "LD", "2")
   Zhead <- paste(names(zs[[1]]), collapse=',')
 
 
   PAINTOR="/Users/yc16575/PAINTOR_V3.0/PAINTOR"
-  glue::glue("{PAINTOR} -input input.files -Zhead {Zhead} -LDname {LDname[[1]]} -in {workdir}/ -out {workdir}/ -mcmc -annotations null") %>% system()
+  lapply(1:nid, function(i)
+  {
+    system(glue::glue("{PAINTOR} -input input.files{i} -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
+  }) %>% system()
 
- # /Users/yc16575/PAINTOR_V3.0/PAINTOR -input input.files -Zhead  ZSCORE.P1,ZSCORE.P2 -LDname LD1,LD2 - in /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -out /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -enumerate 2 - annotiations null
+ # /Users/yc16575/PAINTOR_V3.0/PAINTOR -input input.files -Zhead ZSCORE.P1,ZSCORE.P2 -LDname LD1,LD2 -in /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -out /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -mcmc - annotiations null
 
-  res <- data.table::fread(file.path(workdir, "Locus1.results"))
+  res <- lapply(1:5, function(i){
+    data.table::fread(file.path(workdir, paste0("Locus", i, ".results")))
+  })
   unlink(workdir)
-  return(res)
+  self$paintor_results <- res
+
+
+  res <- res[!sapply(res, is.null)]
+  bestsnp <- lapply(1:length(res), function(r)
+    {if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
+      else {res[[r]] %>% dplyr::arrange(Posterior_Prob) %>% {.$RSID[1]}}
+    })
+  instrument_paintor <- lapply(1:nid, function(r){
+    lapply(1:length(id), function(id){
+      region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
+        dplyr::bind_rows() %>%
+        dplyr::arrange(id, chr, position)
+    })}) %>% dplyr::bind_rows() %>% as.data.frame()
+
+  t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
+    dplyr::select(id, units, samplesize)
+  instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
+  instrument_paintor <- lapply(id, function(i){subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
+  self$instrument_paintor <- instrument_paintor
+  invisible(self)
+
+
+  invisible(self)
 }
 
 
@@ -734,10 +767,10 @@ run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAI
 #' @return plot
 plot_PAINTOR <- function(res)
 {
-  res %>% pivot_longer(cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob)) %>%
-    ggplot(., aes(x=POS, y=value)) +
-    geom_point(aes(colour=name)) +
-    facet_grid(name ~ ., scale="free_y")
+  res[[1]] %>% tidyr::pivot_longer(cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob)) %>%
+    ggplot2::ggplot(., ggplot2::aes(x=POS, y=value)) +
+    ggplot2::geom_point(ggplot2::aes(colour=name)) +
+    ggplot2::facet_grid(name ~ ., scale="free_y")
 }
 
 #' Analyse regional data with MsCAVIAR
