@@ -25,5 +25,6 @@ Imports: ieugwasr,
 	    tidyverse,
 	    tidyr,
         magrittr,
-        genetics.binaRies
+        genetics.binaRies,
+        parallel
 Config/testthat/edition: 3

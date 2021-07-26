@@ -383,7 +383,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       ggplot2::facet_grid(name ~ original_rsid, scale="free")
   },
 
-
   # to build on extract_instrument_regions we can do finemapping
   # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
   # We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
@@ -552,8 +551,90 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # PAINTOR allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
   # Choose the variant with highest posterior probability and associations in each exposure
-  paintor_finemap_regions = function() {},
+  #' @param regiondata Output from extract_regional_data
+  #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
+  #' @param workdir Working directory. Default=tempdir()
+  #' @export
+  #' @return Results table with posterior inclusion probabilities
+  paintor_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, PAINTOR="PAINTOR", workdir=tempdir())
+  {
+    id <- self$exposure_ids
+    nid <- length(region)
+    snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
+    zs <- lapply(1:nid, function(i)
+    {
+      o <- list()
+      lapply(1:length(id), function(id){
+        o[[paste0("ZSCORE.P", id)]]<- region[[i]][[id]]$beta / region[[i]][[id]]$se
+        return(tibble::as_tibble(o))
+      }) %>% dplyr::bind_cols()
+    })
 
+    locus <- lapply(1:nid, function(i)
+    {
+      l <- list()
+      l <- tibble::tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
+      l <- l %>% dplyr::bind_cols(., zs[[i]])
+      ldsnp <- strsplit(rownames(ld[[i]][[1]]), "_") %>% sapply(., function(x) x[1])
+      snp <- l$RSID %in% ldsnp
+      index <- which(l$RSID %in% ldsnp)
+      d <- l[index, ]
+      return(d)
+    })
+
+    anno <- lapply(1:nid, function(i){tibble::tibble(null=rep(1, nrow(locus[[i]])))})
+
+    #write.files
+    lapply(1:nid, function(i)
+    {
+      write.table(locus[i][[1]], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
+      write.table(anno[[i]], file=file.path(workdir, paste0("Locus", i, ".annotations")), row=F, col=T, qu=F)
+      write.table(paste0("Locus", i), file=file.path(workdir, paste0("input.files", i)), row=F, col=F, qu=F)
+
+      lapply(1:length(id), function(id)
+      {
+        write.table(ld[[i]][[id]], file=file.path(workdir, paste0("Locus", i, ".LD", id)), row=FALSE, col=FALSE, qu=FALSE)
+      })
+    })
+
+    LDname <- paste0("LD", "1", ",", "LD", "2")
+    Zhead <- paste(names(zs[[1]]), collapse=',')
+
+    wd <- getwd()
+    setwd(workdir)
+    parallel::mclapply(1:nid, function(i)
+    {
+      system(glue::glue("{PAINTOR} -input input.files2 -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
+    }, mc.cores = 16)
+
+    res <- lapply(1:nid, function(i){
+      data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2)
+    })
+    names(res) <- names(self$instrument_regions)
+    unlink(workdir)
+    setwd(wd)
+    self$paintor_results <- res
+
+    res <- res[!sapply(res, is.null)]
+    bestsnp <- lapply(1:length(res), function(r)
+    {
+      if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
+      else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$RSID[1]}}
+    })
+    instrument_paintor <- lapply(1:nid, function(r){
+      lapply(1:length(id), function(id){
+        region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
+          dplyr::bind_rows() %>%
+          dplyr::arrange(id, chr, position)
+      })}) %>% dplyr::bind_rows() %>% as.data.frame()
+
+    t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
+      dplyr::select(id, units, samplesize)
+    instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
+    instrument_paintor <- lapply(id, function(i){subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
+    self$instrumendesct_paintor <- instrument_paintor
+    invisible(self)
+  },
 
   # Once a set of instruments is defined then extract the outcome data
   # Could use
@@ -561,92 +642,92 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - maximised associations from extract_instrument_regions
   # - finemapped hits from susie_finemap_regions
   # - finemapped hits from paintor_finemap_regions
-#' @description
-#' insert
-#' @param exp insert
-#' @param p_exp insert
- make_outcome_data = function(exp=self$instrument_raw, p_exp=1){
-    dx <- dplyr::inner_join(
-                            subset(exp, id == self$exposure_ids[[1]]),
-                            subset(exp, id == self$exposure_ids[[2]]),
-                            by="rsid"
-                            ) %>%
-          dplyr::filter(p.x < p_exp & p.y < p_exp)
-    out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids)
-    out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    self$instrument_outcome <- out
-    invisible(self)
-  },
+  #' @description
+  #' insert
+  #' @param exp insert
+  #' @param p_exp insert
+   make_outcome_data = function(exp=self$instrument_raw, p_exp=1){
+      dx <- dplyr::inner_join(
+                              subset(exp, id == self$exposure_ids[[1]]),
+                              subset(exp, id == self$exposure_ids[[2]]),
+                              by="rsid"
+                              ) %>%
+            dplyr::filter(p.x < p_exp & p.y < p_exp)
+      out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids)
+      out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+      self$instrument_outcome <- out
+      invisible(self)
+    },
 
-  harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
-    dx <- exp %>%
-              dplyr::inner_join(
-                subset(exp, id == self$exposure_ids[[1]]),
-                subset(exp, id == self$exposure_ids[[2]]),
-                by="rsid") %>%
-              dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y)
-    dy <- dplyr::inner_join(
-            subset(out, id.outcome == self$outcome_ids[[1]]),
-            subset(out, id.outcome == self$outcome_ids[[2]]),
-          by="SNP") %>%
-        dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
-    dat <- dplyr::inner_join(dx, dy, by="SNP")
-    self$harmonised_dat_sem <- dat
-  },
+    harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
+      dx <- exp %>%
+                dplyr::inner_join(
+                  subset(exp, id == self$exposure_ids[[1]]),
+                  subset(exp, id == self$exposure_ids[[2]]),
+                  by="rsid") %>%
+                dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y)
+      dy <- dplyr::inner_join(
+              subset(out, id.outcome == self$outcome_ids[[1]]),
+              subset(out, id.outcome == self$outcome_ids[[2]]),
+            by="SNP") %>%
+          dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
+      dat <- dplyr::inner_join(dx, dy, by="SNP")
+      self$harmonised_dat_sem <- dat
+    },
 
   # Generate harmonised dataset
   # Perform basic SEM analysis of the joint estimates in multiple ancestries
-#' @description
-#' insert
-#' @param harmonised_dat insert
-  perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
-    d <- harmonised_dat %>%
-         dplyr::mutate(r1 = y1/x1) %>%
-         dplyr::mutate(r2 = y2/x2) %>%
-         dplyr::mutate(w1 = sqrt(x1^2 / yse1^2)) %>%
-         dplyr::mutate(w2 = sqrt(x2^2 / yse2^2)) %>%
-         dplyr::mutate(o1 = r1 * w1) %>%
-         dplyr::mutate(o2 = r2 * w2)
+  #' @description
+  #' insert
+  #' @param harmonised_dat insert
+    perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
+      d <- harmonised_dat %>%
+           dplyr::mutate(r1 = y1/x1) %>%
+           dplyr::mutate(r2 = y2/x2) %>%
+           dplyr::mutate(w1 = sqrt(x1^2 / yse1^2)) %>%
+           dplyr::mutate(w2 = sqrt(x2^2 / yse2^2)) %>%
+           dplyr::mutate(o1 = r1 * w1) %>%
+           dplyr::mutate(o2 = r2 * w2)
 
-    out <- list()
-    out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
-                  {tibble::tibble(Methods="IVW", pop="1", bivhat=.$b, se=.$se, pval=.$pval)}
-    out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
-                  {tibble::tibble(Methods="IVW", pop="2", bivhat=.$b, se=.$se, pval=.$pval)}
-    out$rm1 <- summary(lm(o1 ~ -1 + w1, data=d)) %>%
-                  {tibble::tibble(Methods="RadialIVW", pop="1", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
-    out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
-                  {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+      out <- list()
+      out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
+                    {tibble::tibble(Methods="IVW", pop="1", bivhat=.$b, se=.$se, pval=.$pval)}
+      out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
+                    {tibble::tibble(Methods="IVW", pop="2", bivhat=.$b, se=.$se, pval=.$pval)}
+      out$rm1 <- summary(lm(o1 ~ -1 + w1, data=d)) %>%
+                    {tibble::tibble(Methods="RadialIVW", pop="1", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+      out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
+                    {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
-    out$semA <- private$runsem('
-                               y1 ~ biv*x1
-                               y2 ~ biv*x2
-                               ', d, "UnweightedSEMa")[1, ] %>%
-                              dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
+      out$semA <- private$runsem('
+                                 y1 ~ biv*x1
+                                 y2 ~ biv*x2
+                                 ', d, "UnweightedSEMa")[1, ] %>%
+                                dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
 
-    out$semB <- private$runsem('
-                                 y1 ~ biv_1*x1
-                                 y2 ~ biv_2*x2
-                                 ', d, "UnweightedSEMb")
+      out$semB <- private$runsem('
+                                   y1 ~ biv_1*x1
+                                   y2 ~ biv_2*x2
+                                   ', d, "UnweightedSEMb")
 
-    out$modC <- private$runsem('
-                               o1 ~ biv*w1
-                               o2 ~ biv*w2
-                               ', d, "RadialSEMa")[1, ] %>%
-                              dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
+      out$modC <- private$runsem('
+                                 o1 ~ biv*w1
+                                 o2 ~ biv*w2
+                                 ', d, "RadialSEMa")[1, ] %>%
+                                dplyr::mutate(pop=replace(pop, pop==1, "1=2"))
 
-    out$modD <- private$runsem('
-                                 o1 ~ biv_1*w1
-                                 o2 ~ biv_2*w2
-                                 ', d, "RadialSEMb")
+      out$modD <- private$runsem('
+                                   o1 ~ biv_1*w1
+                                   o2 ~ biv_2*w2
+                                   ', d, "RadialSEMb")
 
-    invisible(self$sem_result <- out %>% dplyr::bind_rows())
-    print(self$sem_result)
-  }
+      invisible(self$sem_result <- out %>% dplyr::bind_rows())
+      print(self$sem_result)
+    }
 
-  # Plots
-  # Plot regional associations for each instrument and each population
-  # Plot finemapping results against regional association data
+    # Plots
+    # Plot regional associations for each instrument and each population
+    # Plot finemapping results against regional association data
 
 ))
 
@@ -663,100 +744,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
 
 
-#' Analyse regional data with PAINTOR
-#'
-#' @param regiondata Output from extract_regional_data
-#' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
-#' @param workdir Working directory. Default=tempdir()
-#'
-#' @export
-#' @return Results table with posterior inclusion probabilities
-run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAINTOR="PAINTOR", workdir=tempdir())
-{
-  id <- self$exposure_ids
-  nid <- length(region)
-  snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
-  zs <- lapply(1:nid, function(i)
-  {
-    o <- list()
-    lapply(1:length(id), function(id){
-      o[[paste0("ZSCORE.P", id)]]<- region[[i]][[id]]$beta / region[[i]][[id]]$se
-      return(tibble::as_tibble(o))
-    }) %>% dplyr::bind_cols()
-  })
 
-  locus <- lapply(1:nid, function(i)
-  {
-    l <- list()
-    l <- tibble::tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
-    l <- l %>% dplyr::bind_cols(., zs[[i]])
-    ldsnp <- strsplit(rownames(ld[[i]][[1]]), "_") %>% sapply(., function(x) x[1])
-    snp <- l$RSID %in% ldsnp
-    index <- which(l$RSID %in% ldsnp)
-    d <- l[index, ]
-    return(d)
-  })
-
-  anno <- lapply(1:nid, function(i){tibble::tibble(null=rep(1, nrow(locus[[i]])))})
-
-  #write.files
-  lapply(1:nid, function(i)
-  {
-    write.table(locus[i][[1]], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
-    write.table(anno[[i]], file=file.path(workdir, paste0("Locus", i, ".annotations")), row=F, col=T, qu=F)
-    write.table(paste0("Locus", i), file=file.path(workdir, paste0("input.files", i)), row=F, col=F, qu=F)
-
-    lapply(1:length(id), function(id)
-    {
-      write.table(ld[[i]][[id]], file=file.path(workdir, paste0("Locus", i, ".LD", id)), row=FALSE, col=FALSE, qu=FALSE)
-    })
-  })
-
-  #write.table(paste0("Locus", 1:nid), file=file.path(workdir, paste0("input.files", i), row=F, col=F, qu=F)
-  #write.table(c("Locus1", "Locus2"), file=file.path(workdir, "input.files"), row=F, col=F, qu=F)
-
-
-  LDname <- paste0("LD", "1", ",", "LD", "2")
-  Zhead <- paste(names(zs[[1]]), collapse=',')
-
-
-  PAINTOR="/Users/yc16575/PAINTOR_V3.0/PAINTOR"
-  lapply(1:nid, function(i)
-  {
-    system(glue::glue("{PAINTOR} -input input.files{i} -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
-  }) %>% system()
-
- # /Users/yc16575/PAINTOR_V3.0/PAINTOR -input input.files -Zhead ZSCORE.P1,ZSCORE.P2 -LDname LD1,LD2 -in /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -out /var/folders/f0/3lcjg1d96mdbv865w9cx2lb40000gn/T//RtmpELfLfE/ -mcmc - annotiations null
-
-  res <- lapply(1:5, function(i){
-    data.table::fread(file.path(workdir, paste0("Locus", i, ".results")))
-  })
-  unlink(workdir)
-  self$paintor_results <- res
-
-
-  res <- res[!sapply(res, is.null)]
-  bestsnp <- lapply(1:length(res), function(r)
-    {if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
-      else {res[[r]] %>% dplyr::arrange(Posterior_Prob) %>% {.$RSID[1]}}
-    })
-  instrument_paintor <- lapply(1:nid, function(r){
-    lapply(1:length(id), function(id){
-      region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
-        dplyr::bind_rows() %>%
-        dplyr::arrange(id, chr, position)
-    })}) %>% dplyr::bind_rows() %>% as.data.frame()
-
-  t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
-    dplyr::select(id, units, samplesize)
-  instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
-  instrument_paintor <- lapply(id, function(i){subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
-  self$instrument_paintor <- instrument_paintor
-  invisible(self)
-
-
-  invisible(self)
-}
 
 
 #' Plot PAINTOR results
@@ -765,13 +753,45 @@ run_PAINTOR <- function(region=self$instrument_regions, ld=self$ld_matrices, PAI
 #'
 #' @export
 #' @return plot
-plot_PAINTOR <- function(res)
+plot_PAINTOR <- function(instruments=self$instrument_paintor, paintor_scores=self$paintor_results, region=1:min(10, nrow(instruments)))
 {
-  res[[1]] %>% tidyr::pivot_longer(cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob)) %>%
-    ggplot2::ggplot(., ggplot2::aes(x=POS, y=value)) +
+  nid <- length(unique(instruments$rsid))
+  if(min(10, nrow(instruments))==10) {region=sample(1:nid, 10, replace=F)
+    } else {region=nrow(instruments)}
+  a <-paintor_scores[region]
+  a <- names(a) %>% lapply(., function(n)
+  {
+    o <- dplyr::bind_rows(a[[n]])
+    o$original_rsid <- n
+    return(o)
+  }) %>% dplyr::bind_rows()
+  a <- tidyr::pivot_longer(a, cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob))
+  a$selected <- a$RSID %in% instruments$rsid
+  ggplot2::ggplot(a, ggplot2::aes(x=POS, y=value)) +
     ggplot2::geom_point(ggplot2::aes(colour=name)) +
-    ggplot2::facet_grid(name ~ ., scale="free_y")
+    ggplot2::geom_point(data=subset(a, selected), , colour="black") +
+    ggplot2::facet_grid(name ~ original_rsid, scale="free")
 }
+
+plot_regional_instruments = function(region=1:min(10, nrow(instruments)), instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw)
+{
+
+  a <- instrument_region_zscores[region]
+  a <- names(a) %>% lapply(., function(n)
+  {
+    o <- dplyr::bind_rows(a[[n]])
+    o$original_rsid <- n
+    return(o)
+  }) %>% dplyr::bind_rows()
+  colnum <- which(names(a) == "zsum")
+  nom <- names(a)[1:colnum]
+  a <- tidyr::pivot_longer(a, nom)
+  a$selected <- a$rsid %in% instruments$rsid
+  ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
+    ggplot2::geom_point(ggplot2::aes(colour=name)) +
+    ggplot2::geom_point(data=subset(a, selected), , colour="black") +
+    ggplot2::facet_grid(name ~ original_rsid, scale="free")
+},
 
 #' Analyse regional data with MsCAVIAR
 #'
