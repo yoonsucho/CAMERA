@@ -13,16 +13,19 @@ Using a summary set, identify set of instruments for the traits, and peform SEM 
 \item \href{#method-import}{\code{MultiAncestrySummarySet$import()}}
 \item \href{#method-new}{\code{MultiAncestrySummarySet$new()}}
 \item \href{#method-extract_instruments}{\code{MultiAncestrySummarySet$extract_instruments()}}
-\item \href{#method-check_instruments}{\code{MultiAncestrySummarySet$check_instruments()}}
+\item \href{#method-check_phenotypes}{\code{MultiAncestrySummarySet$check_phenotypes()}}
+\item \href{#method-standardise_units}{\code{MultiAncestrySummarySet$standardise_units()}}
 \item \href{#method-extract_instrument_regions}{\code{MultiAncestrySummarySet$extract_instrument_regions()}}
 \item \href{#method-estimate_instrument_specificity}{\code{MultiAncestrySummarySet$estimate_instrument_specificity()}}
-\item \href{#method-prop_overlap}{\code{MultiAncestrySummarySet$prop_overlap()}}
 \item \href{#method-scan_regional_instruments}{\code{MultiAncestrySummarySet$scan_regional_instruments()}}
 \item \href{#method-plot_regional_instruments}{\code{MultiAncestrySummarySet$plot_regional_instruments()}}
 \item \href{#method-regional_ld_matrices}{\code{MultiAncestrySummarySet$regional_ld_matrices()}}
 \item \href{#method-susie_finemap_regions}{\code{MultiAncestrySummarySet$susie_finemap_regions()}}
 \item \href{#method-paintor_finemap_regions}{\code{MultiAncestrySummarySet$paintor_finemap_regions()}}
-\item \href{#method-extract_outcome_data}{\code{MultiAncestrySummarySet$extract_outcome_data()}}
+\item \href{#method-run_MsCAVIAR}{\code{MultiAncestrySummarySet$run_MsCAVIAR()}}
+\item \href{#method-plot_finemapping}{\code{MultiAncestrySummarySet$plot_finemapping()}}
+\item \href{#method-make_outcome_data}{\code{MultiAncestrySummarySet$make_outcome_data()}}
+\item \href{#method-harmonised_dat}{\code{MultiAncestrySummarySet$harmonised_dat()}}
 \item \href{#method-perform_basic_sem}{\code{MultiAncestrySummarySet$perform_basic_sem()}}
 \item \href{#method-clone}{\code{MultiAncestrySummarySet$clone()}}
 }
@@ -98,11 +101,23 @@ Identifies the instruments for the exposure
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-check_instruments"></a>}}
-\if{latex}{\out{\hypertarget{method-check_instruments}{}}}
-\subsection{Method \code{check_instruments()}}{
+\if{html}{\out{<a id="method-check_phenotypes"></a>}}
+\if{latex}{\out{\hypertarget{method-check_phenotypes}{}}}
+\subsection{Method \code{check_phenotypes()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$check_instruments(ids = self$exposure_ids)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$check_phenotypes(
+  ids = self$exposure_ids,
+  after_standardised = NULL
+)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-standardise_units"></a>}}
+\if{latex}{\out{\hypertarget{method-standardise_units}{}}}
+\subsection{Method \code{standardise_units()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$standardise_units(exp = NULL, out = NULL)}\if{html}{\out{</div>}}
 }
 
 }
@@ -149,31 +164,6 @@ Estimate what fraction of the instuments is expected to be replicated under the 
 \item{\code{instrument}}{A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}}
 
 \item{\code{alpha}}{Significance level. Default is 0.05/number of SNPs (Bonferroni)}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-prop_overlap"></a>}}
-\if{latex}{\out{\hypertarget{method-prop_overlap}{}}}
-\subsection{Method \code{prop_overlap()}}{
-insert
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$prop_overlap(b_disc, b_rep, se_disc, se_rep, alpha)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{b_disc}}{insert}
-
-\item{\code{b_rep}}{insert}
-
-\item{\code{se_disc}}{insert}
-
-\item{\code{se_rep}}{insert}
-
-\item{\code{alpha}}{insert}
 }
 \if{html}{\out{</div>}}
 }
@@ -258,7 +248,10 @@ insert
 \if{latex}{\out{\hypertarget{method-susie_finemap_regions}{}}}
 \subsection{Method \code{susie_finemap_regions()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$susie_finemap_regions()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$susie_finemap_regions(
+  dat = self$instrument_regions,
+  ld = self$ld_matrices
+)}\if{html}{\out{</div>}}
 }
 
 }
@@ -267,21 +260,89 @@ insert
 \if{latex}{\out{\hypertarget{method-paintor_finemap_regions}{}}}
 \subsection{Method \code{paintor_finemap_regions()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$paintor_finemap_regions()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$paintor_finemap_regions(
+  region = self$instrument_regions,
+  ld = self$ld_matrices,
+  PAINTOR = "PAINTOR",
+  workdir = tempdir()
+)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{workdir}}{Working directory. Default=tempdir()}
+
+\item{\code{regiondata}}{Output from extract_regional_data}
+
+\item{\code{mscaviar}}{Path to mscaviar executable. Default="mscaviar"}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Results table with posterior inclusion probabilities
+Analyse regional data with MsCAVIAR
+}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-extract_outcome_data"></a>}}
-\if{latex}{\out{\hypertarget{method-extract_outcome_data}{}}}
-\subsection{Method \code{extract_outcome_data()}}{
+\if{html}{\out{<a id="method-run_MsCAVIAR"></a>}}
+\if{latex}{\out{\hypertarget{method-run_MsCAVIAR}{}}}
+\subsection{Method \code{run_MsCAVIAR()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$run_MsCAVIAR(
+  region = self$instrument_regions,
+  ld = self$ld_matrices,
+  MsCAVIAR = "/work/yc16575/MsCAVIAR/MsCAVIAR",
+  workdir = tempdir()
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{MsCAVIAR}}{Path to MsCAVIAR executable. Default="MsCAVIAR"}
+
+\item{\code{workdir}}{Working directory. Default=tempdir()}
+
+\item{\code{regiondata}}{Output from extract_regional_data}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Results table with posterior inclusion probabilities
+Plot paintor results
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-plot_finemapping"></a>}}
+\if{latex}{\out{\hypertarget{method-plot_finemapping}{}}}
+\subsection{Method \code{plot_finemapping()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$plot_finemapping(
+  instruments = self$instrument_paintor,
+  probability_scores = self$paintor_results,
+  region = 1:min(10, nrow(instruments))
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{res}}{Output from run_paintor}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+plot
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-make_outcome_data"></a>}}
+\if{latex}{\out{\hypertarget{method-make_outcome_data}{}}}
+\subsection{Method \code{make_outcome_data()}}{
 insert
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$extract_outcome_data(
-  exp = self$instrument_raw,
-  standardise = FALSE,
-  p_exp = 1
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$make_outcome_data(exp = self$instrument_raw, p_exp = 1)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -293,6 +354,18 @@ insert
 }
 \if{html}{\out{</div>}}
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-harmonised_dat"></a>}}
+\if{latex}{\out{\hypertarget{method-harmonised_dat}{}}}
+\subsection{Method \code{harmonised_dat()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$harmonised_dat(
+  exp = self$instrument_raw,
+  out = self$instrument_outcome
+)}\if{html}{\out{</div>}}
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-perform_basic_sem"></a>}}

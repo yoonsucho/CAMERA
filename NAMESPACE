@@ -2,8 +2,4 @@
 
 export("%>%")
 export(MultiAncestrySummarySet)
-export(plot_MsCAVIAR)
-export(plot_PAINTOR)
-export(run_MsCAVIAR)
-export(run_PAINTOR)
 importFrom(magrittr,"%>%")

@@ -22,11 +22,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   ld_matrices = NULL,
   susie_results = NULL,
   paintor_results = NULL,
+  mscaviar_results = NULL,
   expected_replications = NULL,
   instrument_region_zscores = NULL,
   instrument_maxz = NULL,
   instrument_susie = NULL,
-  instrument_paintor = NULL,
+  instrument_paintor= NULL,
+  instrument_mscaviar = NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
@@ -548,11 +550,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
    invisible(self)
   },
 
-  # PAINTOR allows finemapping jointly across multiple populations
+  # mscaviar allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
   # Choose the variant with highest posterior probability and associations in each exposure
   #' @param regiondata Output from extract_regional_data
-  #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
+  #' @param mscaviar Path to mscaviar executable. Default="mscaviar"
   #' @param workdir Working directory. Default=tempdir()
   #' @export
   #' @return Results table with posterior inclusion probabilities
@@ -597,7 +599,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       })
     })
 
-    LDname <- paste0("LD", "1", ",", "LD", "2")
+    LDname <- paste0("LD", 1:length(id), collapse=',')
     Zhead <- paste(names(zs[[1]]), collapse=',')
 
     wd <- getwd()
@@ -607,8 +609,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       system(glue::glue("{PAINTOR} -input input.files2 -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
     }, mc.cores = 16)
 
-    res <- lapply(1:nid, function(i){
-      data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2)
+    res <- lapply(1:nid, function(i)
+    {
+      data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2) %>% 
+        dplyr::rename(., chr=CHR, position=POS, rsid=RSID)
     })
     names(res) <- names(self$instrument_regions)
     unlink(workdir)
@@ -621,6 +625,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
       else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$RSID[1]}}
     })
+
     instrument_paintor <- lapply(1:nid, function(r){
       lapply(1:length(id), function(id){
         region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
@@ -631,23 +636,128 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
       dplyr::select(id, units, samplesize)
     instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
-    instrument_paintor <- lapply(id, function(i){subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
+    instrument_paintor <- lapply(id, function(i) {subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
     self$instrumendesct_paintor <- instrument_paintor
     invisible(self)
   },
 
-  #' Plot PAINTOR results
+  #' Analyse regional data with MsCAVIAR
   #'
-  #' @param res Output from run_PAINTOR
+  #' @param regiondata Output from extract_regional_data
+  #' @param MsCAVIAR Path to MsCAVIAR executable. Default="MsCAVIAR"
+  #' @param workdir Working directory. Default=tempdir()
+  #'
+  #' @export
+  #' @return Results table with posterior inclusion probabilities
+  run_MsCAVIAR = function(region=self$instrument_regions, ld=self$ld_matrices, MsCAVIAR="/work/yc16575/MsCAVIAR/MsCAVIAR", workdir=tempdir())
+  {
+    id <- self$exposure_ids
+    nid <- length(region)
+    snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
+    n <- paste0(unique(self$instrument_raw$samplesize), collapse = ",")
+
+    zs <- lapply(1:nid, function(i)
+                {lapply(1:length(id), function(id)
+                  { 
+                    zs <- region[[i]][[id]] %>%
+                              dplyr::mutate(z=beta/se) %>%
+                              dplyr::select(rsid, z)
+                    names(zs)[2] <- c(paste0("ZSCORE.P", id)) 
+                    ldsnp <- strsplit(rownames(ld[[i]][[1]]), "_") %>% sapply(., function(x) x[1])
+                    snp <- zs$rsid %in% ldsnp
+                    index <- which(zs$rsid %in% ldsnp)
+                    zs <- zs[index, ]
+                    write.table(zs, file=file.path(workdir, paste0("z_", i, "_", id, ".zscores")), row=F, col=F, qu=F)
+                    return(tibble::as_tibble(zs))
+                })
+          }) 
+
+
+    lapply(1:nid, function(i)
+      {lapply(1:length(id), function(id)
+        {
+           write.table(ld[[i]][[id]], file=file.path(workdir, paste0("ld_", i, "_", id, ".ld")), row=FALSE, col=FALSE, qu=FALSE)
+      })})
+
+    thisdir <- getwd()
+    setwd(workdir)
+
+    lapply(1:nid, function(i)
+      {
+        writeLines(c(paste0("z_", i, "_", 1:length(id), ".zscores")), file(file.path(workdir, paste0("zfiles", i, ".txt"))))
+        writeLines(c(paste0("ld_", i, "_", 1:length(id), ".ld")), file(file.path(workdir, paste0("ldfiles", i, ".txt"))))
+      })
+
+    parallel::mclapply(1:nid, function(i)
+              {
+                system(glue::glue("{MsCAVIAR} -l ldfiles{i}.txt -z zfiles{i}.txt -n {n} -o results{i}"))
+                message("Analysis [", i, "/", nid, "]")
+              } , mc.cores = 16)
+
+    res <- lapply(1:nid, function(i)
+      {tryCatch({
+        res <- data.table::fread(file.path(workdir, paste0("results", i, "_post.txt")))
+        names(res)[1] <- c("rsid")
+        names(res)[2] <- c("Posterior_Prob")
+        return(res)
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+      }) 
+      
+
+    zs2 <- suppressMessages(lapply(1:nid, function(i)
+                {
+                  zs[[i]] %>% dplyr::bind_cols() %>%
+                              dplyr::select(rsid=rsid...1, ZSCORE.P1, ZSCORE.P2)
+                }))
+
+    res <- suppressMessages(lapply(1:nid, function(i) 
+              {tryCatch({
+                  res <- res[[i]] %>% dplyr::left_join(., zs2[[i]]) %>%
+                              dplyr::left_join(., region[[i]][[1]]) %>%
+                              dplyr::select(rsid, chr, position, ZSCORE.P1, ZSCORE.P2, Posterior_Prob)
+                  return(res)
+                  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+            }))
+    names(res) <- names(self$instrument_regions)
+
+    setwd(thisdir)
+
+    self$mscaviar_results <- res
+
+    bestsnp <- lapply(1:length(res), function(r)
+      {
+        if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
+        else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$rsid[1]}}
+      })
+
+    instrument_mscaviar <- lapply(1:nid, function(r){
+        lapply(1:length(id), function(id){
+          region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
+            dplyr::bind_rows() %>%
+            dplyr::arrange(id, chr, position)
+        })}) %>% dplyr::bind_rows() %>% as.data.frame()
+
+      t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
+        dplyr::select(id, units, samplesize)
+      instrument_mscaviar <- dplyr::left_join(instrument_mscaviar, t, by = "id") %>% as.data.frame()
+      instrument_mscaviar <- lapply(id, function(i) {subset(instrument_mscaviar, id == i)}) %>% dplyr::bind_rows() %>%
+                             dplyr::relocate(rsid, chr, position, id, beta, se, p, ea, nea, units, samplesize)
+      self$instrumendesct_mscaviar <- instrument_mscaviar
+      invisible(self)
+  },
+
+  #' Plot paintor results
+  #'
+  #' @param res Output from run_paintor
   #'
   #' @export
   #' @return plot
-  plot_PAINTOR <- function(instruments=self$instrument_paintor, paintor_scores=self$paintor_results, region=1:min(10, nrow(instruments)))
+  plot_finemapping = function(instruments=self$instrument_paintor, probability_scores=self$paintor_results, region=1:min(10, nrow(instruments)))
   {
     nid <- length(unique(instruments$rsid))
     if(min(10, nrow(instruments))==10) {region=sample(1:nid, 10, replace=F)
     } else {region=nrow(instruments)}
-    a <-paintor_scores[region]
+    a <- probability_scores[region]
     a <- names(a) %>% lapply(., function(n)
     {
       o <- dplyr::bind_rows(a[[n]])
@@ -655,8 +765,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       return(o)
     }) %>% dplyr::bind_rows()
     a <- tidyr::pivot_longer(a, cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob))
-    a$selected <- a$RSID %in% instruments$rsid
-    ggplot2::ggplot(a, ggplot2::aes(x=POS, y=value)) +
+    a$selected <- a[[1]] %in% instruments[[1]]
+    ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
       ggplot2::geom_point(ggplot2::aes(colour=name)) +
       ggplot2::geom_point(data=subset(a, selected), , colour="black") +
       ggplot2::facet_grid(name ~ original_rsid, scale="free")
@@ -667,7 +777,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # - raw results from extract_instruments
   # - maximised associations from extract_instrument_regions
   # - finemapped hits from susie_finemap_regions
-  # - finemapped hits from paintor_finemap_regions
+  # - finemapped hits from mscaviar_finemap_regions
   #' @description
   #' insert
   #' @param exp insert
@@ -756,72 +866,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     # Plot finemapping results against regional association data
 
 ))
-
-
-
-
-#' Analyse regional data with MsCAVIAR
-#'
-#' @param regiondata Output from extract_regional_data
-#' @param MsCAVIAR Path to MsCAVIAR executable. Default="MsCAVIAR"
-#' @param workdir Working directory. Default=tempdir()
-#'
-#' @export
-#' @return Results table with posterior inclusion probabilities
-run_MsCAVIAR <- function(region=self$instrument_regions, ld=self$ld_matrices, n, MsCAVIAR="MsCAVIAR", workdir=tempdir())
-{
-  id <- self$exposure_ids
-  nid <- length(region)
-  snps <- lapply(1:nid, function(i) {region[[i]][[1]]$rsid})
-
-  lapply(1:nid, function(i)
-    {lapply(1:length(id), function(id)
-      {
-        region[[i]][[id]] %>%
-          dplyr::mutate(z=beta/se) %>%
-          dplyr::select(SNP=rsid, z) %>%
-          write.table(., file=file.path(workdir, paste0("z.", i, id)), row=F, col=F, qu=F)
-    })})
-
-  lapply(1:nid, function(i)
-    {lapply(1:length(id), function(id)
-      {
-         write.table(ld[[i]][[id]], file=file.path(workdir, paste0("ld.", i, id)), row=FALSE, col=FALSE, qu=FALSE)
-    })})
-
-  thisdir <- getwd()
-  setwd(workdir)
-  write.table(paste0("ld.", 1:nid), file="ldfiles.txt", row=F, col=F, qu=F)
-  write.table(paste0("z.", 1:nid), file="zfiles.txt", row=F, col=F, qu=F)
-  glue("{MsCAVIAR} -l ldfiles.txt -z zfiles.txt -n {paste(n, collapse=',')} -o results") %>% system()
-  res <- data.table::fread("results_post.txt")
-  zs <- lapply(1:nid, function(i)
-  {
-    out <- list()
-    out[[paste0("ZSCORE.P", i)]] <- regiondata[[i]]$x$beta.exposure / regiondata[[i]]$x$se.exposure
-    as_tibble(out)
-  }) %>% bind_cols()
-  stopifnot(all(res$SNP_ID == regiondata[[1]]$x$SNP))
-  names(res)[1] <- c("SNP")
-  res <- bind_cols(res, zs) %>%
-    mutate(CHR = regiondata[[1]]$x$chr.exposure, POS=regiondata[[1]]$x$position.exposure)
-  setwd(thisdir)
-  return(res)
-}
-
-#' Plot MsCAVIAR results
-#'
-#' @param res Output from run_MsCAVIAR
-#'
-#' @export
-#' @return plot
-plot_MsCAVIAR <- function(res)
-{
-  res %>% pivot_longer(cols=c(ZSCORE.P1, ZSCORE.P2, Prob_in_pCausalSet)) %>%
-    ggplot(., aes(x=POS, y=value)) +
-    geom_point(aes(colour=name)) +
-    facet_grid(name ~ ., scale="free_y")
-}
 
 
 
