@@ -54,6 +54,7 @@ MultiAncestrySummarySet$set("private", "runsem", function(model, data, modname)
   o <- tibble::tibble(
                       Methods=modname,
                       pop=1:2,
+                      nsnp=nrow(data),
                       bivhat=mod$PE$est[1:2],
                       se=mod$PE$se[1:2],
                       pval=mod$PE$pvalue[1:2],
@@ -83,4 +84,21 @@ MultiAncestrySummarySet$set("private", "greedy_remove", function(r, thresh)
     }
   }
   return(which(nom %in% rem))
+})
+
+
+MultiAncestrySummarySet$set("private", "jackknife2", function (x, theta, ...)
+{
+  call <- match.call()
+  n <- length(x)
+  u <- rep(0, n)
+  for (i in 1:n) {
+    u[i] <- theta(x[-i], ...)
+  }
+  thetahat <- theta(x, ...)
+  jack.bias <- (n - 1) * (mean(u) - thetahat)
+  jack.se <- sqrt(((n - 1)/n) * sum((u - mean(u))^2))
+  jack.sd <- sqrt((1/n) * sum((u - mean(u))^2))
+  return(list(jack.se = jack.se, jack.sd = jack.sd, jack.bias = jack.bias, jack.values = u,
+              call = call))
 })

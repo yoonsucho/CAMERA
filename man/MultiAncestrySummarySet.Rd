@@ -2,7 +2,7 @@
 % Please edit documentation in R/MultiAncestrySummarySet.R
 \name{MultiAncestrySummarySet}
 \alias{MultiAncestrySummarySet}
-\title{R6 class for MR.TRAM}
+\title{R6 class for TAMR}
 \description{
 A simple wrapper function.
 Using a summary set, identify set of instruments for the traits, and peform SEM MR to test the association across the population.

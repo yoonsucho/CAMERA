@@ -1,0 +1,109 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+library(devtools)
+load_all()
+load("/Users/yc16575/TAMR/R/example.rdata")
+```
+
+
+## RAW
+### Raw - not standirdised 
+```{r}
+x$estimate_instrument_specificity(x$instrument_raw)
+x$make_outcome_data(exp=x$instrument_raw, p_exp=1)
+x$harmonised_dat(exp=x$instrument_raw, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+### Raw - standirdised 
+```{r}
+x$standardise_units(exp=x$instrument_raw)
+x$estimate_instrument_specificity(x$standardised_exposure)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+
+## MAXZ
+### maxz - not standirdised 
+```{r}
+x$estimate_instrument_specificity(x$instrument_maxz)
+x$make_outcome_data(exp=x$instrument_maxz, p_exp=1)
+x$harmonised_dat(exp=x$instrument_maxz, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+### maxz - standirdised 
+```{r}
+x$standardise_units(exp=x$instrument_maxz)
+x$estimate_instrument_specificity(x$standardised_exposure)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+
+## SUSIE
+### susie - not standirdised
+```{r}
+x$estimate_instrument_specificity(x$instrument_susie)
+x$make_outcome_data(exp=x$instrument_susie, p_exp=1)
+x$harmonised_dat(exp=x$instrument_susie, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+### susie - standirdised
+```{r}
+x$standardise_units(exp=x$instrument_susie)
+x$estimate_instrument_specificity(x$standardised_exposure)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+
+## PAINTOR
+### paintor - not standirdised
+```{r}
+x$estimate_instrument_specificity(x$instrument_paintor)
+x$make_outcome_data(exp=x$instrument_paintor, p_exp=1)
+x$harmonised_dat(exp=x$instrument_paintor, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+### paintor - standirdised
+```{r}
+x$standardise_units(exp=x$instrument_paintor)
+x$estimate_instrument_specificity(x$standardised_exposure)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+
+## MsCAVIAR
+### mscaviar - not standirdised
+```{r}
+x$estimate_instrument_specificity(x$instrument_mscaviar)
+x$make_outcome_data(exp=x$instrument_mscaviar, p_exp=1)
+x$harmonised_dat(exp=x$instrument_mscaviar, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+
+### mscaviar - standirdised
+```{r}
+x$standardise_units(exp=x$instrument_mscaviar)
+x$estimate_instrument_specificity(x$standardised_exposure)
+x$make_outcome_data(exp=x$standardised_exposure, p_exp=1)
+x$harmonised_dat(exp=x$standardised_exposure, out=x$instrument_outcome)
+x$perform_basic_sem()
+```
+

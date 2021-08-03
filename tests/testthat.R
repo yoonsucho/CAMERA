@@ -1,4 +1,4 @@
 library(testthat)
-library(MR.TRAM)
+library(TAMR)
 
-test_check("MR.TRAM")
+test_check("TAMR")

@@ -1,4 +1,4 @@
-#' R6 class for MR.TRAM
+#' R6 class for TAMR
 #'
 #' @description
 #' A simple wrapper function.
@@ -611,7 +611,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     res <- lapply(1:nid, function(i)
     {
-      data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2) %>% 
+      data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2) %>%
         dplyr::rename(., chr=CHR, position=POS, rsid=RSID)
     })
     names(res) <- names(self$instrument_regions)
@@ -619,11 +619,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     setwd(wd)
     self$paintor_results <- res
 
-    res <- res[!sapply(res, is.null)]
+    #res <- res[!sapply(res, is.null)]
     bestsnp <- lapply(1:length(res), function(r)
     {
       if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
-      else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$RSID[1]}}
+      else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$rsid[1]}}
     })
 
     instrument_paintor <- lapply(1:nid, function(r){
@@ -658,11 +658,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     zs <- lapply(1:nid, function(i)
                 {lapply(1:length(id), function(id)
-                  { 
+                  {
                     zs <- region[[i]][[id]] %>%
                               dplyr::mutate(z=beta/se) %>%
                               dplyr::select(rsid, z)
-                    names(zs)[2] <- c(paste0("ZSCORE.P", id)) 
+                    names(zs)[2] <- c(paste0("ZSCORE.P", id))
                     ldsnp <- strsplit(rownames(ld[[i]][[1]]), "_") %>% sapply(., function(x) x[1])
                     snp <- zs$rsid %in% ldsnp
                     index <- which(zs$rsid %in% ldsnp)
@@ -670,7 +670,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                     write.table(zs, file=file.path(workdir, paste0("z_", i, "_", id, ".zscores")), row=F, col=F, qu=F)
                     return(tibble::as_tibble(zs))
                 })
-          }) 
+          })
 
 
     lapply(1:nid, function(i)
@@ -701,8 +701,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         names(res)[2] <- c("Posterior_Prob")
         return(res)
       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-      }) 
-      
+      })
+
 
     zs2 <- suppressMessages(lapply(1:nid, function(i)
                 {
@@ -710,7 +710,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                               dplyr::select(rsid=rsid...1, ZSCORE.P1, ZSCORE.P2)
                 }))
 
-    res <- suppressMessages(lapply(1:nid, function(i) 
+    res <- suppressMessages(lapply(1:nid, function(i)
               {tryCatch({
                   res <- res[[i]] %>% dplyr::left_join(., zs2[[i]]) %>%
                               dplyr::left_join(., region[[i]][[1]]) %>%
@@ -827,13 +827,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
       out <- list()
       out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
-                    {tibble::tibble(Methods="IVW", pop="1", bivhat=.$b, se=.$se, pval=.$pval)}
+                    {tibble::tibble(Methods="IVW", pop="1", nsnp=nrow(d), bivhat=.$b, se=.$se, pval=.$pval)}
       out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
-                    {tibble::tibble(Methods="IVW", pop="2", bivhat=.$b, se=.$se, pval=.$pval)}
+                    {tibble::tibble(Methods="IVW", pop="2", nsnp=nrow(d), bivhat=.$b, se=.$se, pval=.$pval)}
       out$rm1 <- summary(lm(o1 ~ -1 + w1, data=d)) %>%
-                    {tibble::tibble(Methods="RadialIVW", pop="1", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+                    {tibble::tibble(Methods="RadialIVW", pop="1", nsnp=nrow(d), bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
       out$rm2 <- summary(lm(o2 ~ -1 + w2, data=d)) %>%
-                    {tibble::tibble(Methods="RadialIVW", pop="2", bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
+                    {tibble::tibble(Methods="RadialIVW", pop="2", nsnp=nrow(d), bivhat=.$coef[1,1], se=.$coef[1,2], pval=.$coef[1,4])}
 
       out$semA <- private$runsem('
                                  y1 ~ biv*x1

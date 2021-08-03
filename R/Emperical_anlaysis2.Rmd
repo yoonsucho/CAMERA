@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  cache = TRUE
+  cache = FALSE
 )
 ```
 
@@ -25,7 +25,7 @@ a <- MultiAncestrySummarySet$new(
       exposure_ids=c("ieu-b-35", "bbj-a-14"),
       outcome_ids=c("ieu-a-7", "bbj-a-109"), 
       pops=c("EUR", "EAS"),
-  		bfiles=c("/Users/yc16575/MR.TRAM/R/EUR", "/Users/yc16575/MR.TRAM/R/EAS"), 		
+      bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
   		plink = genetics.binaRies::get_plink_binary(), 		
   		radius=50000, 
   		clump_pop="EAS"
@@ -60,19 +60,22 @@ a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
 
+suppressWarnings(a$regional_ld_matrices())
+suppressWarnings(a$susie_finemap_regions())
+a$estimate_instrument_specificity(a$instrument_susie)
+a$standardise_units(exp=a$instrument_susie)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+
 ```
 
 
 ## Triglyceride-Type 2 diabetes
 ```{r}
-b <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-a-302", "bbj-a-55"), 
-  outcome_ids=c("ieu-a-23", "bbj-a-77"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
+b <- MultiAncestrySummarySet$new
+
+
 b$check_phenotypes(ids=b$exposure_ids)
 b$check_phenotypes(ids=b$outcome_ids)
 
@@ -102,18 +105,27 @@ b$estimate_instrument_specificity(b$standardised_exposure)
 b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
 b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
 b$perform_basic_sem()
+
+suppressWarnings(b$regional_ld_matrices())
+suppressWarnings(b$susie_finemap_regions())
+b$estimate_instrument_specificity(b$instrument_susie)
+b$standardise_units(exp=b$instrument_susie)
+b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
+b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
+b$perform_basic_sem()
 ```
 
  
 ## BMI-Type 2 diabetes
 ```{r}
 c <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-a-2", "bbj-a-1"), 
-  outcome_ids=c("ieu-a-23", "bbj-a-77"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
+      exposure_ids=c("ieu-a-2", "bbj-a-1"), 
+      outcome_ids=c("ieu-a-23", "bbj-a-77"), 
+      pops=c("EUR", "EAS"),
+      bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
+  		plink = genetics.binaRies::get_plink_binary(), 		
+  		radius=50000, 
+  		clump_pop="EAS"
 )
 c$check_phenotypes(ids=c$exposure_ids)
 c$check_phenotypes(ids=c$outcome_ids)
@@ -141,6 +153,14 @@ c$estimate_instrument_specificity(c$instrument_maxz)
 c$standardise_units(exp=c$instrument_maxz)
 c$estimate_instrument_specificity(c$standardised_exposure)
 
+c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
+c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
+c$perform_basic_sem()
+
+suppressWarnings(c$regional_ld_matrices())
+suppressWarnings(c$susie_finemap_regions())
+c$estimate_instrument_specificity(c$instrument_susie)
+c$standardise_units(exp=c$instrument_susie)
 c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
 c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
 c$perform_basic_sem()
