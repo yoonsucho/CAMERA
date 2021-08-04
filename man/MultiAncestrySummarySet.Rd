@@ -21,9 +21,6 @@ Using a summary set, identify set of instruments for the traits, and peform SEM 
 \item \href{#method-plot_regional_instruments}{\code{MultiAncestrySummarySet$plot_regional_instruments()}}
 \item \href{#method-regional_ld_matrices}{\code{MultiAncestrySummarySet$regional_ld_matrices()}}
 \item \href{#method-susie_finemap_regions}{\code{MultiAncestrySummarySet$susie_finemap_regions()}}
-\item \href{#method-paintor_finemap_regions}{\code{MultiAncestrySummarySet$paintor_finemap_regions()}}
-\item \href{#method-run_MsCAVIAR}{\code{MultiAncestrySummarySet$run_MsCAVIAR()}}
-\item \href{#method-plot_finemapping}{\code{MultiAncestrySummarySet$plot_finemapping()}}
 \item \href{#method-make_outcome_data}{\code{MultiAncestrySummarySet$make_outcome_data()}}
 \item \href{#method-harmonised_dat}{\code{MultiAncestrySummarySet$harmonised_dat()}}
 \item \href{#method-perform_basic_sem}{\code{MultiAncestrySummarySet$perform_basic_sem()}}
@@ -254,87 +251,6 @@ insert
 )}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-paintor_finemap_regions"></a>}}
-\if{latex}{\out{\hypertarget{method-paintor_finemap_regions}{}}}
-\subsection{Method \code{paintor_finemap_regions()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$paintor_finemap_regions(
-  region = self$instrument_regions,
-  ld = self$ld_matrices,
-  PAINTOR = "PAINTOR",
-  workdir = tempdir()
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{PAINTOR}}{Path to PAINTOR executable. Default="PAINTOR"}
-
-\item{\code{workdir}}{Working directory. Default=tempdir()}
-
-\item{\code{regiondata}}{Output from extract_regional_data}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-Results table with posterior inclusion probabilities
-Analyse regional data with MsCAVIAR
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-run_MsCAVIAR"></a>}}
-\if{latex}{\out{\hypertarget{method-run_MsCAVIAR}{}}}
-\subsection{Method \code{run_MsCAVIAR()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$run_MsCAVIAR(
-  region = self$instrument_regions,
-  ld = self$ld_matrices,
-  MsCAVIAR = "/work/yc16575/MsCAVIAR/MsCAVIAR",
-  workdir = tempdir()
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{MsCAVIAR}}{Path to MsCAVIAR executable. Default="MsCAVIAR"}
-
-\item{\code{workdir}}{Working directory. Default=tempdir()}
-
-\item{\code{regiondata}}{Output from extract_regional_data}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-Results table with posterior inclusion probabilities
-Plot paintor results
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-plot_finemapping"></a>}}
-\if{latex}{\out{\hypertarget{method-plot_finemapping}{}}}
-\subsection{Method \code{plot_finemapping()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MultiAncestrySummarySet$plot_finemapping(
-  instruments = self$instrument_paintor,
-  probability_scores = self$paintor_results,
-  region = 1:min(10, nrow(instruments))
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{res}}{Output from run_paintor}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-plot
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-make_outcome_data"></a>}}
