@@ -606,7 +606,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     setwd(workdir)
     parallel::mclapply(1:nid, function(i)
     {
-      system(glue::glue("{PAINTOR} -input input.files2 -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
+      system(glue::glue("{PAINTOR} -input input.files{i} -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
     }, mc.cores = 16)
 
     res <- lapply(1:nid, function(i)

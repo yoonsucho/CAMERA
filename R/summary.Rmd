@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Summary - BMI-CHD"
 output:
   html_document:
     df_print: paged
@@ -12,6 +12,17 @@ load_all()
 load("/Users/yc16575/TAMR/R/example.rdata")
 ```
 
+```r
+x <- MultiAncestrySummarySet$new(
+  		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
+  		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  		pops = c("EUR", "EAS"),
+  		bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
+  		plink = genetics.binaRies::get_plink_binary(), 		
+  		radius=50000, 
+  		clump_pop="EAS"
+	)
+```
 
 ## RAW
 ### Raw - not standirdised 

@@ -20,11 +20,11 @@ source("MultiAncestrySummarySet.R")
 ```
 
 ```r
-y <- x
-x$import(y)
+y <- a
+a$import(y)
 
-x <- MultiAncestrySummarySet$new()
-x$import(y)
+a <- MultiAncestrySummarySet$new()
+a$import(y)
 
 ```
 

@@ -19,7 +19,124 @@ library(devtools)
 load_all()
 ```
 
-## CRP-CHD
+
+## SBP-CHD
+```r
+a <- MultiAncestrySummarySet$new(
+      exposure_ids=c("ukb-b-20175", "bbj-a-52"),
+      outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+      pops=c("EUR", "EAS"),
+      bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
+  		plink = genetics.binaRies::get_plink_binary(), 		
+  		radius=50000, 
+  		clump_pop="EAS"
+	)
+```
+
+## RAW
+### Raw - not standirdised 
+```{r}
+a$estimate_instrument_specificity(a$instrument_raw)
+a$make_outcome_data(exp=a$instrument_raw, p_exp=1)
+a$harmonised_dat(exp=a$instrument_raw, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+### Raw - standirdised 
+```{r}
+a$standardise_units(exp=a$instrument_raw)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+
+## MAXZ
+### maxz - not standirdised 
+```{r}
+a$estimate_instrument_specificity(a$instrument_maxz)
+a$make_outcome_data(exp=a$instrument_maxz, p_exp=1)
+a$harmonised_dat(exp=a$instrument_maxz, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+### maxz - standirdised 
+```{r}
+a$standardise_units(exp=a$instrument_maxz)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+
+## SUSIE
+### susie - not standirdised
+```{r}
+a$estimate_instrument_specificity(a$instrument_susie)
+a$make_outcome_data(exp=a$instrument_susie, p_exp=1)
+a$harmonised_dat(exp=a$instrument_susie, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+### susie - standirdised
+```{r}
+a$standardise_units(exp=a$instrument_susie)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+
+## PAINTOR
+### paintor - not standirdised
+```{r}
+a$estimate_instrument_specificity(a$instrument_paintor)
+a$make_outcome_data(exp=a$instrument_paintor, p_exp=1)
+a$harmonised_dat(exp=a$instrument_paintor, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+### paintor - standirdised
+```{r}
+a$paintor_finemap_regions(PAINTOR="~/PAINTOR_V3.0//PAINTOR", workdir=tempdir())
+a$standardise_units(exp=a$instrument_paintor)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+
+## MsCAVIAR
+### mscaviar - not standirdised
+```{r}
+a$estimate_instrument_specificity(a$instrument_mscaviar)
+a$make_outcome_data(exp=a$instrument_mscaviar, p_exp=1)
+a$harmonised_dat(exp=a$instrument_mscaviar, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+### mscaviar - standirdised
+```{r}
+a$standardise_units(exp=a$instrument_mscaviar)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
+a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
+a$perform_basic_sem()
+```
+
+
+## Schizophrenia - CRP
+```{R}
+scz <- read.table("~/TAMR/R/daner_natgen_pgc_eas.gz", header = T)
+scz_dat <- read_exposure_data(scz)
+```
+
+
+## SBP-CHD
 ```{r}
 a <- MultiAncestrySummarySet$new(
       exposure_ids=c("ieu-b-35", "bbj-a-14"),
@@ -67,155 +184,21 @@ a$standardise_units(exp=a$instrument_susie)
 a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
-
 ```
 
-
-## Triglyceride-Type 2 diabetes
-```{r}
-b <- MultiAncestrySummarySet$new
-
-
-b$check_phenotypes(ids=b$exposure_ids)
-b$check_phenotypes(ids=b$outcome_ids)
-
-b$extract_instruments()
-b$estimate_instrument_specificity(b$instrument_raw)
-
-b$standardise_units(exp=b$instrument_raw)
-b$estimate_instrument_specificity(b$standardised_exposure)
-b$check_phenotypes(ids=NULL, after_standardised=b$standardised_exposure)
-
-b$make_outcome_data(exp=b$instrument_raw, p_exp=1)
-b$harmonised_dat(exp=b$instrument_raw, out=b$instrument_outcome)
-b$perform_basic_sem()
-
-b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
-b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
-b$perform_basic_sem()
-
-suppressMessages(b$extract_instrument_regions())
-b$scan_regional_instruments()
-b$plot_regional_instruments(instruments=b$instrument_maxz)
-
-b$estimate_instrument_specificity(b$instrument_maxz)
-b$standardise_units(exp=b$instrument_maxz)
-b$estimate_instrument_specificity(b$standardised_exposure)
-
-b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
-b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
-b$perform_basic_sem()
-
-suppressWarnings(b$regional_ld_matrices())
-suppressWarnings(b$susie_finemap_regions())
-b$estimate_instrument_specificity(b$instrument_susie)
-b$standardise_units(exp=b$instrument_susie)
-b$make_outcome_data(exp=b$standardised_exposure, p_exp=1)
-b$harmonised_dat(exp=b$standardised_exposure, out=b$instrument_outcome)
-b$perform_basic_sem()
-```
 
  
 ## BMI-Type 2 diabetes
 ```{r}
-c <- MultiAncestrySummarySet$new(
-      exposure_ids=c("ieu-a-2", "bbj-a-1"), 
-      outcome_ids=c("ieu-a-23", "bbj-a-77"), 
-      pops=c("EUR", "EAS"),
-      bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
-  		plink = genetics.binaRies::get_plink_binary(), 		
-  		radius=50000, 
-  		clump_pop="EAS"
-)
-c$check_phenotypes(ids=c$exposure_ids)
-c$check_phenotypes(ids=c$outcome_ids)
-
-c$extract_instruments()
-c$estimate_instrument_specificity(c$instrument_raw)
-
-c$standardise_units(exp=c$instrument_raw)
-c$estimate_instrument_specificity(c$standardised_exposure)
-c$check_phenotypes(ids=NULL, after_standardised=c$standardised_exposure)
-
-c$make_outcome_data(exp=c$instrument_raw, p_exp=1)
-c$harmonised_dat(exp=c$instrument_raw, out=c$instrument_outcome)
-c$perform_basic_sem()
-
-c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
-c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
-c$perform_basic_sem()
-
-suppressMessages(c$extract_instrument_regions())
-c$scan_regional_instruments()
-c$plot_regional_instruments(instruments=c$instrument_maxz)
-
-c$estimate_instrument_specificity(c$instrument_maxz)
-c$standardise_units(exp=c$instrument_maxz)
-c$estimate_instrument_specificity(c$standardised_exposure)
-
-c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
-c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
-c$perform_basic_sem()
-
-suppressWarnings(c$regional_ld_matrices())
-suppressWarnings(c$susie_finemap_regions())
-c$estimate_instrument_specificity(c$instrument_susie)
-c$standardise_units(exp=c$instrument_susie)
-c$make_outcome_data(exp=c$standardised_exposure, p_exp=1)
-c$harmonised_dat(exp=c$standardised_exposure, out=c$instrument_outcome)
-c$perform_basic_sem()
+#Warning in lavaan::lavaan(model = model, data = data, model.type = "sem",  :
+#  lavaan WARNING:
+#    the optimizer (NLMINB) claimed the model converged, but not all
+#    elements of the gradient are (near) zero; the optimizer may not
+#    have found a local solution use check.gradient = FALSE to skip
+#    this check.
+#Warning in .local(object, ...) :
+#  lavaan WARNING: fit measures not available if model did not converge
 ```
 
 
 
-
-## Triglyceride-BMI
-```r
-#lavaan WARNING: some observed variances are (at least) a factor 1000 times larger than others; use varTable(fit) to investigate  
-d <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ieu-a-302", "bbj-a-55"), 
-  outcome_ids=c("ieu-a-2", "bbj-a-1"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
-d$extract_instruments()
-d$check_instruments()
-d$estimate_instrument_specificity(d$instrument_raw)
-suppressMessages(d$extract_instrument_regions())
-d$scan_regional_instruments()
-d$plot_regional_instruments(instruments=d$instrument_maxz)
-d$estimate_instrument_specificity(d$instrument_maxz)
-d$extract_outcome_data(exp=d$instrument_raw, p_exp=1)
-d$perform_basic_sem()
-
-d$extract_outcome_data(exp=d$instrument_maxz, p_exp=1)
-d$perform_basic_sem()
-```
-
-
-## Smoking-lung cancer
-```r
-#lavaan WARNING: some observed variances are (at least) a factor 1000 times larger than others; use varTable(fit) to investigate  
-d <- MultiAncestrySummarySet$new(
-  exposure_ids=c("ukb-a-236", "bbj-a-78"), 
-  outcome_ids=c("ukb-a-54", "bbj-a-133"), 
-  bfiles=c("/work/yc16575/1kg_imp_gwasglue/EUR", "/work/yc16575/1kg_imp_gwasglue/EAS"), 
-  plink = genetics.binaRies::get_plink_binary(), 
-  radius=50000, 
-  clump_pop="EAS"
-)
-d$extract_instruments()
-d$check_instruments()
-d$estimate_instrument_specificity(d$instrument_raw)
-suppressMessages(d$extract_instrument_regions())
-d$scan_regional_instruments()
-d$plot_regional_instruments(instruments=d$instrument_maxz)
-d$estimate_instrument_specificity(d$instrument_maxz)
-d$extract_outcome_data(exp=d$instrument_raw, p_exp=1)
-d$perform_basic_sem()
-
-d$extract_outcome_data(exp=d$instrument_maxz, p_exp=1)
-d$perform_basic_sem()
-```
