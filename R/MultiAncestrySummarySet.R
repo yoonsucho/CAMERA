@@ -550,11 +550,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
    invisible(self)
   },
 
-  # mscaviar allows finemapping jointly across multiple populations
+  # PAINTOR allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
   # Choose the variant with highest posterior probability and associations in each exposure
   #' @param regiondata Output from extract_regional_data
-  #' @param mscaviar Path to mscaviar executable. Default="mscaviar"
+  #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
   #' @param workdir Working directory. Default=tempdir()
   #' @export
   #' @return Results table with posterior inclusion probabilities
@@ -649,7 +649,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   #'
   #' @export
   #' @return Results table with posterior inclusion probabilities
-  run_MsCAVIAR = function(region=self$instrument_regions, ld=self$ld_matrices, MsCAVIAR="/work/yc16575/MsCAVIAR/MsCAVIAR", workdir=tempdir())
+  MsCAVIAR_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, MsCAVIAR="MsCAVIAR", workdir=tempdir())
   {
     id <- self$exposure_ids
     nid <- length(region)

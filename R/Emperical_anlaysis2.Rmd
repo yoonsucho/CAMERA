@@ -19,11 +19,10 @@ library(devtools)
 load_all()
 ```
 
-
-## SBP-CHD
-```r
+## CRP-CHD
+```{r}
 a <- MultiAncestrySummarySet$new(
-      exposure_ids=c("ukb-b-20175", "bbj-a-52"),
+      exposure_ids=c("ieu-b-35", "bbj-a-14"),
       outcome_ids=c("ieu-a-7", "bbj-a-109"), 
       pops=c("EUR", "EAS"),
       bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
@@ -31,113 +30,50 @@ a <- MultiAncestrySummarySet$new(
   		radius=50000, 
   		clump_pop="EAS"
 	)
-```
+a$check_phenotypes(ids=a$exposure_ids)
+a$check_phenotypes(ids=a$outcome_ids)
 
-## RAW
-### Raw - not standirdised 
-```{r}
+a$extract_instruments()
 a$estimate_instrument_specificity(a$instrument_raw)
+
+a$standardise_units(exp=a$instrument_raw)
+a$estimate_instrument_specificity(a$standardised_exposure)
+a$check_phenotypes(ids=NULL, after_standardised=a$standardised_exposure)
+
 a$make_outcome_data(exp=a$instrument_raw, p_exp=1)
 a$harmonised_dat(exp=a$instrument_raw, out=a$instrument_outcome)
 a$perform_basic_sem()
-```
 
-### Raw - standirdised 
-```{r}
-a$standardise_units(exp=a$instrument_raw)
-a$estimate_instrument_specificity(a$standardised_exposure)
 a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
-```
 
+suppressMessages(a$extract_instrument_regions())
+a$scan_regional_instruments()
+a$plot_regional_instruments(instruments=a$instrument_maxz)
 
-## MAXZ
-### maxz - not standirdised 
-```{r}
 a$estimate_instrument_specificity(a$instrument_maxz)
-a$make_outcome_data(exp=a$instrument_maxz, p_exp=1)
-a$harmonised_dat(exp=a$instrument_maxz, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-### maxz - standirdised 
-```{r}
 a$standardise_units(exp=a$instrument_maxz)
 a$estimate_instrument_specificity(a$standardised_exposure)
+
 a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
-```
 
-
-## SUSIE
-### susie - not standirdised
-```{r}
+suppressWarnings(a$regional_ld_matrices())
+suppressWarnings(a$susie_finemap_regions())
 a$estimate_instrument_specificity(a$instrument_susie)
-a$make_outcome_data(exp=a$instrument_susie, p_exp=1)
-a$harmonised_dat(exp=a$instrument_susie, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-### susie - standirdised
-```{r}
 a$standardise_units(exp=a$instrument_susie)
-a$estimate_instrument_specificity(a$standardised_exposure)
 a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
 a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
 a$perform_basic_sem()
+
 ```
 
-
-## PAINTOR
-### paintor - not standirdised
-```{r}
-a$estimate_instrument_specificity(a$instrument_paintor)
-a$make_outcome_data(exp=a$instrument_paintor, p_exp=1)
-a$harmonised_dat(exp=a$instrument_paintor, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-### paintor - standirdised
-```{r}
-a$paintor_finemap_regions(PAINTOR="~/PAINTOR_V3.0//PAINTOR", workdir=tempdir())
-a$standardise_units(exp=a$instrument_paintor)
-a$estimate_instrument_specificity(a$standardised_exposure)
-a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
-a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-
-## MsCAVIAR
-### mscaviar - not standirdised
-```{r}
-a$estimate_instrument_specificity(a$instrument_mscaviar)
-a$make_outcome_data(exp=a$instrument_mscaviar, p_exp=1)
-a$harmonised_dat(exp=a$instrument_mscaviar, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-### mscaviar - standirdised
-```{r}
-a$standardise_units(exp=a$instrument_mscaviar)
-a$estimate_instrument_specificity(a$standardised_exposure)
-a$make_outcome_data(exp=a$standardised_exposure, p_exp=1)
-a$harmonised_dat(exp=a$standardised_exposure, out=a$instrument_outcome)
-a$perform_basic_sem()
-```
-
-
-## Schizophrenia - CRP
-```{R}
-scz <- read.table("~/TAMR/R/daner_natgen_pgc_eas.gz", header = T)
-scz_dat <- read_exposure_data(scz)
-```
 
 
 ## SBP-CHD
-```{r}
+```{R}
 a <- MultiAncestrySummarySet$new(
       exposure_ids=c("ieu-b-35", "bbj-a-14"),
       outcome_ids=c("ieu-a-7", "bbj-a-109"), 

@@ -271,11 +271,11 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
+\item{\code{PAINTOR}}{Path to PAINTOR executable. Default="PAINTOR"}
+
 \item{\code{workdir}}{Working directory. Default=tempdir()}
 
 \item{\code{regiondata}}{Output from extract_regional_data}
-
-\item{\code{mscaviar}}{Path to mscaviar executable. Default="mscaviar"}
 }
 \if{html}{\out{</div>}}
 }
