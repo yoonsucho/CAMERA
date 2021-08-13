@@ -455,6 +455,39 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
+
+  check_replicate = function(instrument=self$instrument_specificity, ld=self$ld_matrices){
+    instrument_pop <- instrument %>% dplyr::group_split(id)
+    rep <- instrument_pop[[1]] %>% dplyr::select(rsid)
+    rep$sign <- sign(instrument_pop[[1]]$beta)==sign(instrument_pop[[2]]$beta)
+    rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8 
+
+    ldsc_pop1 <- lapply(1:length(ld), function(i){
+      ld <- ld[[i]][[1]]
+      r2 <- ((nrow(ld)-1) / (nrow(ld)-2) * (ld^2)) - (1/(nrow(ld)-2)) 
+      l <- (sum(r2^2) - nrow(r2))/2
+      return(l)
+    }) %>% unlist()
+    
+    ldsc_pop2 <- lapply(1:length(ld), function(i){
+      ld <- ld[[i]][[2]]
+      r2 <- ((nrow(ld)-1) / (nrow(ld)-2) * (ld^2)) - (1/(nrow(ld)-2)) 
+      l <- (sum(r2^2) - nrow(r2))/2
+      return(l)
+    }) %>% unlist()
+
+    rep$delta_ld <- ldsc_pop1 - ldsc_pop2
+
+    rep$delta_eaf <- instrument_pop[[1]]$eaf - instrument_pop[[2]]$eaf
+
+    res <- list()
+    res[[1]] <- summary(lm(sign ~ delta_ld + delta_eaf, data = rep))$coefficients
+    res[[2]] <- summary(lm(sig ~ delta_ld + delta_eaf, data = rep))$coefficients
+    names(res)[1] <- c("replicated_sign")
+    names(res)[2] <- c("replicated_sig")
+    return(res)
+  },
+
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
   # find credible sets that overlap - to try to determine the best SNP in a region to be used as instrument
@@ -636,7 +669,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       dplyr::select(id, units, samplesize)
     instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
     instrument_paintor <- lapply(id, function(i) {subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
-    self$instrumendesct_paintor <- instrument_paintor
+    self$instrument_paintor <- instrument_paintor
     invisible(self)
   },
 
@@ -738,7 +771,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       instrument_mscaviar <- dplyr::left_join(instrument_mscaviar, t, by = "id") %>% as.data.frame()
       instrument_mscaviar <- lapply(id, function(i) {subset(instrument_mscaviar, id == i)}) %>% dplyr::bind_rows() %>%
                              dplyr::relocate(rsid, chr, position, id, beta, se, p, ea, nea, units, samplesize)
-      self$instrumendesct_mscaviar <- instrument_mscaviar
+      self$instrument_mscaviar <- instrument_mscaviar
       invisible(self)
   },
 
@@ -855,10 +888,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       invisible(self$sem_result <- out %>% dplyr::bind_rows())
       print(self$sem_result)
   }
-
-    # Plots
-    # Plot regional associations for each instrument and each population
-    # Plot finemapping results against regional association data
 
 ))
 
