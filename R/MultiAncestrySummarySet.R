@@ -267,7 +267,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
 #' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
 
-  estimate_instrument_specificity = function(instrument, alpha="bonferroni")
+  estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
     {
@@ -276,29 +276,53 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     o <- lapply(self$exposure_ids, function(i)
     {
       m <- subset(instrument, id == i & p < 5e-8)
-            #winner's curse correction here
-            
-
       other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
-      o <- lapply(other_ids, function(j)
-      {
-        n <- subset(instrument, id == j & rsid %in% m$rsid)
-        o <- n %>%
-          {private$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
-        o$res <- o$res %>%
-          dplyr::mutate(discovery=i, replication=j) %>%
-          dplyr::select(discovery, replication, dplyr::everything())
-        o$variants <- o$variants %>%
-          dplyr::mutate(
-            discovery=i,
-            replication=j,
-            rsid=n$rsid,
-            p=n$p,
-            distinct=sig > 0.8 & p > 0.1
-          ) %>%
-          dplyr::select(discovery, replication, dplyr::everything())
-        return(o)
-      })
+      
+      if(winnerscurse==TRUE){
+          wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid))) 
+          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = 5e-8, conf_level=0.95) %>% 
+                                  dplyr::mutate(rsid = sub("^", "rs",  .$rsid)) %>%
+                                  dplyr::mutate(se.cl3 = (.$upper - .$lower) / 3.92) %>% dplyr::arrange(rsid)
+          o <- lapply(other_ids, function(j)
+          {
+            n <- subset(instrument, id == j & rsid %in% wcl$rsid) %>% dplyr::arrange(rsid)
+            o <- n %>%
+              {private$prop_overlap(wcl$beta.cl3, .$beta, wcl$se.cl3, .$se, alpha)}
+            o$res <- o$res %>%
+              dplyr::mutate(discovery=i, replication=j) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            o$variants <- o$variants %>%
+              dplyr::mutate(
+                discovery=i,
+                replication=j,
+                rsid=n$rsid,
+                p=n$p,
+                distinct=sig > 0.8 & p > 0.1
+              ) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            return(o)
+        })}
+
+      if(winnerscurse==FALSE){
+         o <- lapply(other_ids, function(j)
+          {
+            n <- subset(instrument, id == j & rsid %in% m$rsid)
+            o <- n %>%
+              {private$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
+            o$res <- o$res %>%
+              dplyr::mutate(discovery=i, replication=j) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            o$variants <- o$variants %>%
+              dplyr::mutate(
+                discovery=i,
+                replication=j,
+                rsid=n$rsid,
+                p=n$p,
+                distinct=sig > 0.8 & p > 0.1
+              ) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            return(o)
+      })}
       overall <- lapply(o, function(x) { x$res }) %>% dplyr::bind_rows()
       pervariant <- lapply(o, function(x) { x$variants }) %>% dplyr::bind_rows()
       return(list(overall=overall, pervariant=pervariant))
