@@ -276,6 +276,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     o <- lapply(self$exposure_ids, function(i)
     {
       m <- subset(instrument, id == i & p < 5e-8)
+            #winner's curse correction here
+            
+
       other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
       o <- lapply(other_ids, function(j)
       {
@@ -456,23 +459,31 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-  check_replicate = function(instrument=self$instrument_specificity, ld=self$ld_matrices){
+  check_replicate = function(instrument=self$instrument_raw, ld=self$ld_matrices){
     instrument_pop <- instrument %>% dplyr::group_split(id)
     rep <- instrument_pop[[1]] %>% dplyr::select(rsid)
     rep$sign <- sign(instrument_pop[[1]]$beta)==sign(instrument_pop[[2]]$beta)
     rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8 
+    
+    fam1 <- read.table(paste0(self$bfiles[[1]], ".fam"), header = FALSE) 
+    n1 <- length(unique(fam1[[1]]))
 
     ldsc_pop1 <- lapply(1:length(ld), function(i){
       ld <- ld[[i]][[1]]
-      r2 <- ((nrow(ld)-1) / (nrow(ld)-2) * (ld^2)) - (1/(nrow(ld)-2)) 
+      r2 <- ((n1-1) / (n1-2) * (ld^2)) - (1/(n1-2))
       l <- (sum(r2^2) - nrow(r2))/2
+      #l <- sum(ld[lower.tri(ld)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
     
+    fam2 <- read.table(paste0(self$bfiles[[2]], ".fam"), header = FALSE) 
+    n2 <- length(unique(fam2[[1]]))
+
     ldsc_pop2 <- lapply(1:length(ld), function(i){
       ld <- ld[[i]][[2]]
-      r2 <- ((nrow(ld)-1) / (nrow(ld)-2) * (ld^2)) - (1/(nrow(ld)-2)) 
+      r2 <- ((n2-1) / (n2-2) * (ld^2)) - (1/(n2-2)) 
       l <- (sum(r2^2) - nrow(r2))/2
+      #l <- sum(ld[lower.tri(ld)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
 
@@ -481,10 +492,14 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     rep$delta_eaf <- instrument_pop[[1]]$eaf - instrument_pop[[2]]$eaf
 
     res <- list()
-    res[[1]] <- summary(lm(sign ~ delta_ld + delta_eaf, data = rep))$coefficients
-    res[[2]] <- summary(lm(sig ~ delta_ld + delta_eaf, data = rep))$coefficients
-    names(res)[1] <- c("replicated_sign")
-    names(res)[2] <- c("replicated_sig")
+    res[[1]] <- summary(lm(sign ~ delta_ld, data = rep))$coefficients
+    res[[2]] <- summary(lm(sig ~ delta_eaf, data = rep))$coefficients
+    res[[3]] <- summary(lm(sign ~ delta_ld + delta_eaf, data = rep))$coefficients
+    res[[4]] <- summary(lm(sig ~ delta_ld + delta_eaf, data = rep))$coefficients
+    names(res)[1] <- c("replicated_sign_model1")
+    names(res)[2] <- c("replicated_sig_model1")
+    names(res)[3] <- c("replicated_sign_model2")
+    names(res)[4] <- c("replicated_sig_model2")
     return(res)
   },
 
@@ -636,10 +651,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     wd <- getwd()
     setwd(workdir)
-    parallel::mclapply(1:nid, function(i)
+    lapply(1:nid, function(i)
     {
       system(glue::glue("{PAINTOR} -input input.files{i} -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
-    }, mc.cores = 16)
+    })
 
     res <- lapply(1:nid, function(i)
     {
@@ -717,11 +732,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         writeLines(c(paste0("ld_", i, "_", 1:length(id), ".ld")), file(file.path(workdir, paste0("ldfiles", i, ".txt"))))
       })
 
-    parallel::mclapply(1:nid, function(i)
+    lapply(1:nid, function(i)
               {
                 system(glue::glue("{MsCAVIAR} -l ldfiles{i}.txt -z zfiles{i}.txt -n {n} -o results{i}"))
                 message("Analysis [", i, "/", nid, "]")
-              } , mc.cores = 16)
+              })
 
     res <- lapply(1:nid, function(i)
       {tryCatch({
@@ -748,7 +763,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                   }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
             }))
     names(res) <- names(self$instrument_regions)
-
+    unlink(workdir)
     setwd(thisdir)
 
     self$mscaviar_results <- res
@@ -809,7 +824,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   #' insert
   #' @param exp insert
   #' @param p_exp insert
-  make_outcome_data = function(exp=self$instrument_raw, p_exp=1){
+  make_outcome_data = function(exp=self$instrument_raw, p_exp=0.05/length(unique(self$instrument_raw$rsid))){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
                               subset(exp, id == self$exposure_ids[[2]]),
