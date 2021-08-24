@@ -513,13 +513,17 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     rep$delta_ld <- ldsc_pop1 - ldsc_pop2
 
-    rep$delta_eaf <- instrument_pop[[1]]$eaf - instrument_pop[[2]]$eaf
+    instrument_pop <- lapply(1:length(self$exposure_ids), function(i){
+                               instrument_pop[[i]] %>% dplyr::mutate(maf = dplyr::if_else(.$eaf>0.5, (1-.$eaf), .$eaf, NA_real_)) 
+                            })   
+
+    rep$delta_maf <- instrument_pop[[1]]$maf - instrument_pop[[2]]$maf
 
     res <- list()
-    res[[1]] <- summary(lm(sign ~ delta_ld, data = rep))$coefficients
-    res[[2]] <- summary(lm(sig ~ delta_eaf, data = rep))$coefficients
-    res[[3]] <- summary(lm(sign ~ delta_ld + delta_eaf, data = rep))$coefficients
-    res[[4]] <- summary(lm(sig ~ delta_ld + delta_eaf, data = rep))$coefficients
+    res[[1]] <- summary(glm(sign ~ delta_ld, data = rep), family = binomial(link = "logit"))$coefficients
+    res[[2]] <- summary(glm(sig ~ delta_maf, data = rep), family = binomial(link = "logit"))$coefficients
+    res[[3]] <- summary(glm(sign ~ delta_ld + delta_maf, data = rep), family = binomial(link = "logit"))$coefficients
+    res[[4]] <- summary(glm(sig ~ delta_ld + delta_maf, data = rep), family = binomial(link = "logit"))$coefficients
     names(res)[1] <- c("replicated_sign_model1")
     names(res)[2] <- c("replicated_sig_model1")
     names(res)[3] <- c("replicated_sign_model2")
