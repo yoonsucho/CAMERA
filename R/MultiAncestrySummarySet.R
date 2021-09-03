@@ -483,8 +483,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-  check_replicate = function(instrument=self$instrument_raw, ld=self$ld_matrices){
+  replication_evaluation = function(instrument=self$instrument_raw, ld=self$ld_matrices){
     instrument_pop <- instrument %>% dplyr::group_split(id)
+
     rep <- instrument_pop[[1]] %>% dplyr::select(rsid)
     rep$sign <- sign(instrument_pop[[1]]$beta)==sign(instrument_pop[[2]]$beta)
     rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8 
@@ -495,8 +496,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     ldsc_pop1 <- lapply(1:length(ld), function(i){
       ld <- ld[[i]][[1]]
       r2 <- ((n1-1) / (n1-2) * (ld^2)) - (1/(n1-2))
-      l <- (sum(r2^2) - nrow(r2))/2
-      #l <- sum(ld[lower.tri(ld)]^2, diag=FALSE)
+      l <- mean(r2[lower.tri(r2)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
     
@@ -506,8 +506,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     ldsc_pop2 <- lapply(1:length(ld), function(i){
       ld <- ld[[i]][[2]]
       r2 <- ((n2-1) / (n2-2) * (ld^2)) - (1/(n2-2)) 
-      l <- (sum(r2^2) - nrow(r2))/2
-      #l <- sum(ld[lower.tri(ld)]^2, diag=FALSE)
+      l <- mean(r2[lower.tri(r2)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
 
@@ -517,7 +516,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                                instrument_pop[[i]] %>% dplyr::mutate(maf = dplyr::if_else(.$eaf>0.5, (1-.$eaf), .$eaf, NA_real_)) 
                             })   
 
-    rep$delta_maf <- instrument_pop[[1]]$maf - instrument_pop[[2]]$maf
+    maf_pop1 <- instrument_pop[[1]]$maf * (1-instrument_pop[[1]]$maf)
+    maf_pop2 <- instrument_pop[[2]]$maf * (1-instrument_pop[[2]]$maf)
+
+    rep$delta_maf <- maf_pop1 - maf_pop2
 
     res <- list()
     res[[1]] <- summary(glm(sign ~ delta_ld, data = rep), family = binomial(link = "logit"))$coefficients
@@ -528,7 +530,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     names(res)[2] <- c("replicated_sig_model1")
     names(res)[3] <- c("replicated_sign_model2")
     names(res)[4] <- c("replicated_sig_model2")
-    return(res)
+    return(list(res))
   },
 
   # for each instrument region + ld matrix we can perform susie finemapping
