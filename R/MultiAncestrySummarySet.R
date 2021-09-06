@@ -522,10 +522,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     rep$delta_maf <- maf_pop1 - maf_pop2
 
     res <- list()
-    res[[1]] <- summary(glm(sign ~ delta_ld, data = rep, family = binomial(link = "logit"))$coefficients
-    res[[2]] <- summary(glm(sig ~ delta_maf, data = rep, family = binomial(link = "logit"))$coefficients
-    res[[3]] <- summary(glm(sign ~ delta_ld + delta_maf, data = rep, family = binomial(link = "logit"))$coefficients
-    res[[4]] <- summary(glm(sig ~ delta_ld + delta_maf, data = rep, family = binomial(link = "logit"))$coefficients
+    res[[1]] <- summary(glm(sign ~ delta_ld, data = rep, family = binomial(link = "logit")))$coefficients
+    res[[2]] <- summary(glm(sig ~ delta_maf, data = rep, family = binomial(link = "logit")))$coefficients
+    res[[3]] <- summary(glm(sign ~ delta_ld + delta_maf, data = rep, family = binomial(link = "logit")))$coefficients
+    res[[4]] <- summary(glm(sig ~ delta_ld + delta_maf, data = rep, family = binomial(link = "logit")))$coefficients
     names(res)[1] <- c("replicated_sign_model1")
     names(res)[2] <- c("replicated_sig_model1")
     names(res)[3] <- c("replicated_sign_model2")
