@@ -384,7 +384,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       self$instrument_maxz  <- dplyr::left_join(self$instrument_maxz, t, by = "id") %>% as.data.frame()
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)
     {
-      subset(self$instrument_maxz, id == i)
+      subset(self$instrument_maxz, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)
     }) %>% dplyr::bind_rows()
   },
 
@@ -612,18 +612,18 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
    self$susie_results <- susie
 
    susie <- susie[!sapply(susie, is.null)]
-   o <- lapply(1:length(susie), function(r) {susie[[r]]$bestsnp}) %>% unlist()
+   o <- unique(lapply(1:length(susie), function(r) {susie[[r]]$bestsnp}) %>% unlist())
    instrument_susie <- lapply(resnps, function(r){
      lapply(exp, function(id){
        dat[[r]][[id]] %>% subset(., rsid %in% o) %>%
-                        dplyr::bind_rows() %>%
-                        dplyr::arrange(id, chr, position)
+                        dplyr::bind_rows() %>% 
+                        dplyr::arrange(id, chr, position) 
      })}) %>% dplyr::bind_rows() %>% as.data.frame()
 
    t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
      dplyr::select(id, units, samplesize)
    instrument_susie <- dplyr::left_join(instrument_susie, t, by = "id") %>% as.data.frame()
-   instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i)}) %>% dplyr::bind_rows()
+   instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)}) %>% dplyr::bind_rows()
    self$instrument_susie <- instrument_susie
    invisible(self)
   },
