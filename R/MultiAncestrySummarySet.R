@@ -609,19 +609,23 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
      return(out)
     } , error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
    })
+
+   names(susie) <- names(self$instrument_regions)
    self$susie_results <- susie
 
-   susie <- susie[!sapply(susie, is.null)]
-   o <- unique(lapply(1:length(susie), function(r) {susie[[r]]$bestsnp}) %>% unlist())
-   instrument_susie <- lapply(resnps, function(r){
-     lapply(exp, function(id){
-       dat[[r]][[id]] %>% subset(., rsid %in% o) %>%
-                        dplyr::bind_rows() %>% 
-                        dplyr::arrange(id, chr, position) 
-     })}) %>% dplyr::bind_rows() %>% as.data.frame()
+   #susie <- susie[!sapply(susie, is.null)]
+   o <- unique(lapply(resnps, function(r) {susie[[r]]$bestsnp}) %>% unlist())
+   instrument_susie <- lapply(resnps, function(r){tryCatch({
+     lapply(exp, function(id){ 
+          dat[[r]][[id]] %>% subset(., rsid %in% o) %>%
+                            dplyr::bind_rows() %>% 
+                            dplyr::arrange(id, chr, position)}) 
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    }) %>% dplyr::bind_rows() %>% as.data.frame()
 
-   t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
-     dplyr::select(id, units, samplesize)
+   t <- self$instrument_raw %>% 
+          dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>% dplyr::select(id, units, samplesize)
+   
    instrument_susie <- dplyr::left_join(instrument_susie, t, by = "id") %>% as.data.frame()
    instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)}) %>% dplyr::bind_rows()
    self$instrument_susie <- instrument_susie
