@@ -653,8 +653,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }) %>% dplyr::bind_cols()
     })
 
-    locus <- lapply(1:nid, function(i)
-    {
+    locus <- lapply(1:nid, function(i){ tryCatch({
       l <- list()
       l <- tibble::tibble(CHR = region[[i]][[1]]$chr, POS = region[[i]][[1]]$position, RSID = region[[i]][[1]]$rsid)
       l <- l %>% dplyr::bind_cols(., zs[[i]])
@@ -663,13 +662,16 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       index <- which(l$RSID %in% ldsnp)
       d <- l[index, ]
       return(d)
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
 
-    anno <- lapply(1:nid, function(i){tibble::tibble(null=rep(1, nrow(locus[[i]])))})
+    anno <- lapply(1:nid, function(i){ tryCatch({
+      tibble::tibble(null=rep(1, nrow(locus[[i]])))
+       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+      })
 
     #write.files
-    lapply(1:nid, function(i)
-    {
+    lapply(1:nid, function(i) {tryCatch({
       write.table(locus[i][[1]], file=file.path(workdir, paste0("Locus", i)), row=F, col=T, qu=F)
       write.table(anno[[i]], file=file.path(workdir, paste0("Locus", i, ".annotations")), row=F, col=T, qu=F)
       write.table(paste0("Locus", i), file=file.path(workdir, paste0("input.files", i)), row=F, col=F, qu=F)
@@ -678,6 +680,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       {
         write.table(ld[[i]][[id]], file=file.path(workdir, paste0("Locus", i, ".LD", id)), row=FALSE, col=FALSE, qu=FALSE)
       })
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
 
     LDname <- paste0("LD", 1:length(id), collapse=',')
@@ -685,15 +688,15 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     wd <- getwd()
     setwd(workdir)
-    lapply(1:nid, function(i)
-    {
+    lapply(1:nid, function(i) { tryCatch({
       system(glue::glue("{PAINTOR} -input input.files{i} -Zhead {Zhead} -LDname {LDname} -in {workdir}/ -out {workdir}/ -mcmc -annotations null"))
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
 
-    res <- lapply(1:nid, function(i)
-    {
+    res <- lapply(1:nid, function(i) { tryCatch({
       data.table::fread(file.path(workdir, paste0("Locus", i, ".results"))) %>% dplyr::mutate(ZSCORE.SUM = ZSCORE.P1 + ZSCORE.P2) %>%
         dplyr::rename(., chr=CHR, position=POS, rsid=RSID)
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
     names(res) <- names(self$instrument_regions)
     unlink(workdir)
@@ -701,23 +704,25 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$paintor_results <- res
 
     #res <- res[!sapply(res, is.null)]
-    bestsnp <- lapply(1:length(res), function(r)
-    {
+    bestsnp <- lapply(1:length(res), function(r){ tryCatch({
       if(sum(res[[r]]$Posterior_Prob)==0) {NULL}
       else {res[[r]] %>% dplyr::arrange(desc(Posterior_Prob)) %>% {.$rsid[1]}}
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     })
 
-    instrument_paintor <- lapply(1:nid, function(r){
+    instrument_paintor <- lapply(1:nid, function(r){ tryCatch({
       lapply(1:length(id), function(id){
         region[[r]][[id]] %>% subset(., rsid %in% bestsnp) %>%
           dplyr::bind_rows() %>%
           dplyr::arrange(id, chr, position)
-      })}) %>% dplyr::bind_rows() %>% as.data.frame()
+      })}, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})}) %>% dplyr::bind_rows() %>% as.data.frame()
 
     t <- self$instrument_raw %>% dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>%
       dplyr::select(id, units, samplesize)
     instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
-    instrument_paintor <- lapply(id, function(i) {subset(instrument_paintor, id == i)}) %>% dplyr::bind_rows()
+    instrument_paintor <- lapply(id, function(i) {tryCatch({
+      subset(instrument_paintor, id == i)
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})}) %>% dplyr::bind_rows()
     self$instrument_paintor <- instrument_paintor
     invisible(self)
   },
