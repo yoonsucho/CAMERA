@@ -393,23 +393,43 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param region insert
 #' @param instrument_region_zscores insert
 #' @param instruments insert
-  plot_regional_instruments = function(region=1:min(10, nrow(instruments)), instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw)
+  plot_regional_instruments = function(instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw, region=1:min(10, nrow(instruments)), comparison=FALSE)
   {
-    a <- instrument_region_zscores[region]
-    a <- names(a) %>% lapply(., function(n)
-    {
-      o <- dplyr::bind_rows(a[[n]])
-      o$original_rsid <- n
-      return(o)
-    }) %>% dplyr::bind_rows()
-    colnum <- which(names(a) == "zsum")
-    nom <- names(a)[1:colnum]
-    a <- tidyr::pivot_longer(a, nom)
-    a$selected <- a$rsid %in% instruments$rsid
-    ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
-      ggplot2::geom_point(ggplot2::aes(colour=name)) +
-      ggplot2::geom_point(data=subset(a, selected), , colour="black") +
-      ggplot2::facet_grid(name ~ original_rsid, scale="free")
+      a <- instrument_region_zscores[region]
+      a <- names(a) %>% lapply(., function(n)
+          {
+            o <- dplyr::bind_rows(a[[n]])
+            o$original_rsid <- n
+            return(o)
+          }) %>% dplyr::bind_rows()
+
+      colnum <- which(names(a) == "zsum")
+
+      nom <- names(a)[1:colnum]
+
+      a <- tidyr::pivot_longer(a, nom)
+
+      if(comparison==FALSE){
+            a$selected <- a$rsid %in% instruments$rsid
+            ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
+              ggplot2::geom_point(ggplot2::aes(colour=name)) +
+              ggplot2::geom_point(data=subset(a, selected), , colour="black") +
+              ggplot2::facet_grid(name ~ original_rsid, scale="free")
+      }
+
+      if(comparison==TRUE){
+            a$selected_raw <- a$rsid %in% self$instrument_raw$rsid
+            a$selected_maxz <- a$rsid %in% self$instrument_maxz$rsid
+            a$selected_susie <- a$rsid %in% self$instrument_susie$rsid
+            a$selected_paintor <- a$rsid %in% self$instrument_paintor$rsid
+            ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
+              ggplot2::geom_point(ggplot2::aes(colour=name)) +
+              ggplot2::geom_point(data=subset(a, selected_raw), , colour="black") +
+              ggplot2::geom_point(data=subset(a, selected_maxz), , colour="purple", shape=15) +
+              ggplot2::geom_point(data=subset(a, selected_susie), , colour="orange", shape=17) +
+              ggplot2::geom_point(data=subset(a, selected_paintor), , colour="brown", shape=18) +
+              ggplot2::facet_grid(name ~ original_rsid, scale="free")
+      }
   },
 
   # to build on extract_instrument_regions we can do finemapping
@@ -721,7 +741,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       dplyr::select(id, units, samplesize)
     instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
     instrument_paintor <- lapply(id, function(i) {tryCatch({
-      subset(instrument_paintor, id == i)
+      subset(instrument_paintor, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)
       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})}) %>% dplyr::bind_rows()
     self$instrument_paintor <- instrument_paintor
     invisible(self)
@@ -830,28 +850,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-  #' @description Plot paintor results
-  #' @param res Output from run_paintor
-  plot_finemapping = function(instruments=self$instrument_paintor, probability_scores=self$paintor_results, region=1:min(10, nrow(instruments)))
-  {
-    nid <- length(unique(instruments$rsid))
-    if(min(10, nrow(instruments))==10) {region=sample(1:nid, 10, replace=F)
-    } else {region=nrow(instruments)}
-    a <- probability_scores[region]
-    a <- names(a) %>% lapply(., function(n)
-    {
-      o <- dplyr::bind_rows(a[[n]])
-      o$original_rsid <- n
-      return(o)
-    }) %>% dplyr::bind_rows()
-    a <- tidyr::pivot_longer(a, cols=c(ZSCORE.P1, ZSCORE.P2, Posterior_Prob))
-    a$selected <- a[[1]] %in% instruments[[1]]
-    ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
-      ggplot2::geom_point(ggplot2::aes(colour=name)) +
-      ggplot2::geom_point(data=subset(a, selected), , colour="black") +
-      ggplot2::facet_grid(name ~ original_rsid, scale="free")
-  },
-
 
   # Once a set of instruments is defined then extract the outcome data
   # Could use
@@ -877,15 +875,14 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
   harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
-      dx <- exp %>%
-                dplyr::inner_join(
-                  subset(exp, id == self$exposure_ids[[1]]),
-                  subset(exp, id == self$exposure_ids[[2]]),
-                  by="rsid") %>%
-                dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y)
+      dx <- dplyr::inner_join(
+                              subset(exp, id == self$exposure_ids[[1]]),
+                              subset(exp, id == self$exposure_ids[[2]]),
+                              by="rsid") %>%
+            dplyr::select(SNP=rsid, x1=beta.x, x2=beta.y, xse1=se.x, xse2=se.y, p1=p.x, p2=p.y)
       dy <- dplyr::inner_join(
-              subset(out, id.outcome == self$outcome_ids[[1]]),
-              subset(out, id.outcome == self$outcome_ids[[2]]),
+                              subset(out, id.outcome == self$outcome_ids[[1]]),
+                              subset(out, id.outcome == self$outcome_ids[[2]]),
             by="SNP") %>%
           dplyr::select(SNP=SNP, y1=beta.outcome.x, y2=beta.outcome.y, yse1=se.outcome.x, yse2=se.outcome.y)
       dat <- dplyr::inner_join(dx, dy, by="SNP")
