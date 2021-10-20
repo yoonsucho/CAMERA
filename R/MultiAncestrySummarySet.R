@@ -138,20 +138,31 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }))
   },
 
- instrument_heterogeneity = function(instrument=self$instrument_raw)
+
+ instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni")
   {
-    dat <-  dplyr:: inner_join(
-                  subset(instrument, id == self$exposure_ids[[1]]),
-                  subset(instrument, id == self$exposure_ids[[2]]), by="rsid") %>%
-                  dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)      
-    out <- list()
-    out$het1 <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                    {tibble::tibble(Reference=self$exposure_ids[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
-    out$het2 <- suppressMessages(TwoSampleMR::mr_ivw(dat$y, dat$x, dat$yse, dat$xse)) %>%
-                    {tibble::tibble(Reference=self$exposure_ids[[2]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
-    result <- out %>% dplyr::bind_rows()                
-    print(result)   
-  },
+    if(alpha=="bonferroni")
+    {
+      alpha <- 0.05/nrow(instrument)
+    }
+    
+    o <- lapply(self$exposure_ids, function(i)
+    {
+      m <- subset(instrument, id == i & p < alpha) 
+      other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+
+      o <- lapply(other_ids, function(j)
+          {
+            n <- subset(instrument, id == j & rsid %in% m$rsid)
+            dat <-dplyr:: inner_join(m, n, by="rsid") %>%
+                  dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
+            res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                    {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+            return(res)
+      })})
+    print(o %>% dplyr::bind_rows()) 
+  }, 
+
 
   standardise_units = function(exp=NULL, out=NULL){
       if(!is.null(exp)){
@@ -270,7 +281,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
 #' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
 #' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
-
   estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
@@ -279,12 +289,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     }
     o <- lapply(self$exposure_ids, function(i)
     {
-      m <- subset(instrument, id == i & p < 5e-8)
+      m <- subset(instrument, id == i & p < alpha)
       other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
       
       if(winnerscurse==TRUE){
           wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid))) 
-          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = 5e-8, conf_level=0.95) %>% 
+          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = alpha, conf_level=0.95) %>% 
                                   dplyr::mutate(rsid = sub("^", "rs",  .$rsid)) %>%
                                   dplyr::mutate(se.cl3 = (.$upper - .$lower) / 3.92) %>% dplyr::arrange(rsid)
           o <- lapply(other_ids, function(j)
