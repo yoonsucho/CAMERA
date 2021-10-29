@@ -875,13 +875,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   #' insert
   #' @param exp insert
   #' @param p_exp insert
-  make_outcome_data = function(exp=self$instrument_raw, p_exp=0.05/length(unique(self$instrument_raw$rsid))){
+  make_outcome_data = function(exp=self$instrument_raw, p_exp=0.05/nrow(exp)){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
                               subset(exp, id == self$exposure_ids[[2]]),
                               by="rsid"
-                              ) %>%
-            dplyr::filter(p.x < p_exp & p.y < p_exp)
+                              ) %>% dplyr::filter(p.x < p_exp)
       out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids)
       out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
       self$instrument_outcome <- out
