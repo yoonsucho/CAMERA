@@ -145,21 +145,42 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
       alpha <- 0.05/nrow(instrument)
     }
-    
-    o <- lapply(self$exposure_ids, function(i)
-    {
-      m <- subset(instrument, id == i & p < alpha) 
-      other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
 
-      o <- lapply(other_ids, function(j)
-          {
-            n <- subset(instrument, id == j & rsid %in% m$rsid)
-            dat <-dplyr:: inner_join(m, n, by="rsid") %>%
-                  dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
-            res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                    {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
-            return(res)
-      })})
+    if(!any(names(instrument) %in% c("beta.outcome")))
+    {
+      o <- lapply(self$exposure_ids, function(i)
+      {
+        m <- subset(instrument, id == i & p < alpha) 
+        other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+
+        o <- lapply(other_ids, function(j)
+            {
+              n <- subset(instrument, id == j & rsid %in% m$rsid)
+              dat <-dplyr:: inner_join(m, n, by="rsid") %>%
+                    dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                      {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+              return(res)
+        })})
+    }
+
+    if(any(names(instrument) %in% c("beta.outcome")))
+    {
+      o <- lapply(self$outcome_ids, function(i)
+      {
+        m <- subset(instrument, id.outcome == i & pval.outcome < alpha) 
+        other_ids <- self$outcome_ids[!self$outcome_ids %in% i]
+
+        o <- lapply(other_ids, function(j)
+            {
+              n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
+              dat <-dplyr:: inner_join(m, n, by="SNP") %>%
+                    dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                      {tibble::tibble(Reference=m$id.outcome[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+              return(res)
+        })}) 
+    }
     print(o %>% dplyr::bind_rows()) 
   }, 
 
