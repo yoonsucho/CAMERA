@@ -15,9 +15,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   plink=NULL,
   clump_pop=NULL,
   instrument_raw=NULL,
-  harmonised_data_check=NULL,
-  standardised_exposure=NULL,
-  standardised_outcome=NULL,
   instrument_regions = NULL,
   ld_matrices = NULL,
   susie_results = NULL,
@@ -29,6 +26,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_susie = NULL,
   instrument_paintor= NULL,
   instrument_mscaviar = NULL,
+  harmonised_data_check=NULL,
+  standardised_instrument_raw=NULL,
+  standardised_instrument_maxz=NULL, 
+  standardised_instrument_susie=NULL,
+  standardised_instrument_paintor=NULL,
+  standardised_instrument_mscaviar=NULL, 
+  standardised_outcome=NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
@@ -38,7 +42,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 # for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
 #' @description
 #' Migrate the results from a previous MultiAncestrySummarySet
-  import = function(x) {
+  import = function(x) 
+  {
     nom <- names(self)
     for(i in nom)
     {
@@ -75,33 +80,71 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$clump_pop <- clump_pop
   },
 
-  # e.g. could just use mv_extract_exposures
-  # - for each exposure_id it identifies the instruments
-  # - then it tries to make these independent
-  # - then looks up the same set of instruments in all exposures
+#' @description
+#'  Evaluate instrument associations between populations. The function checks whether 1) the instruments (chosen summary statistics IDs) can be used for the further steps and 2) the units are comparable between populations.
+#' @param ids ID for the exposure or the outcome. Default is x$exposure_ids.
+  check_phenotypes = function(ids=self$exposure_ids)
+  {
+    o <- lapply(ids, function(i)
+      {
+        suppressMessages(exp <- unique(TwoSampleMR::extract_instruments(outcomes=i)))
+        other_ids <- ids[!ids %in% i]
+
+        o <- lapply(other_ids, function(j)
+          {
+            suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=exp$SNP, outcomes=j))
+            suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out))
+
+            res <- suppressMessages(TwoSampleMR::mr(d, method="mr_ivw")) %>%
+                     {tibble::tibble(Reference=i, discovery=j, nsnp=.$nsnp, agreement=.$b, se=.$se, pval=.$pval)}
+
+            message(paste0("Instrument associations between ", i, " and ", j, " is ", round(res$agreement, 3), "; NSNP=", res$nsnp))
+            
+            suppressMessages(
+              t <- d %>% data.frame() %>% 
+                  TwoSampleMR::add_metadata(., cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>% 
+                  dplyr::summarise(unit_ref = .$units.exposure[1], unit_disc = .$units.outcome[1])
+            )
+
+            if(any(is.na(t))){
+               message("Unit information is missing: Run x$standardise_units()")
+               print(t)
+              }
+      
+            if(!any(is.na(t)) & t$unit_ref!=t$unit_disc){
+                message("Units for the beta are different across the populations: See vignettes")
+                print(t)
+              }
+            return(res)
+          })
+        return(o %>% dplyr::bind_rows())
+      })
+    print(o %>% dplyr::bind_rows())
+  },
+
 #' @description
 #'  Identifies the instruments for the exposure
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
-
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
     # Use MVMR method to do the initial extraction
     # It gets the tophits in each exposure
     # Then randomly chooses one SNP per region to keep using clumping
-    instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...)
+    suppressMessages(instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...))
     # Add chromosome and position
-    instrument_raw <- TwoSampleMR::add_metadata(instrument_raw, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-    instrument_raw <- ieugwasr::variants_rsid(unique(instrument_raw$SNP)) %>%
+    suppressMessages(instrument_raw <- TwoSampleMR::add_metadata(instrument_raw, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")))
+    suppressMessages(instrument_raw <- ieugwasr::variants_rsid(unique(instrument_raw$SNP)) %>%
                          dplyr::select(SNP=query, chr, position=pos) %>%
                          dplyr::inner_join(., instrument_raw, by="SNP") %>%
-                         dplyr::arrange(id.exposure, chr, position)
+                         dplyr::arrange(id.exposure, chr, position))
     # Arrange to be in order of exposure_ids
     # Rename columns
     instrument_raw <- lapply(self$exposure_ids, function(id) {
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=contains("size")) %>% as.data.frame
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=contains("size")) %>% 
+      dplyr::mutate(method="raw") %>% as.data.frame
     # Check if top hits are significant in both populations
     t <- instrument_raw %>% dplyr::group_by(id) %>%
           dplyr::summarise(sum(p < 5e-8))
@@ -111,119 +154,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       message(paste0("Caution: No SNPs reached genome-wide significance threshold for the trait in ", id))
     }
     self$instrument_raw <- instrument_raw
-    invisible(self)
-  },
-
-  check_phenotypes = function(ids=self$exposure_ids)
-  {
-    if(!is.null(ids)){
-      suppressMessages(snps <- unique(TwoSampleMR::extract_instruments(ids)$SNP))
-      suppressMessages(outcomes <- TwoSampleMR::extract_outcome_data(snps, ids))
-      suppressMessages(exposures <- TwoSampleMR::convert_outcome_to_exposure(outcomes))
-      suppressMessages(d <- TwoSampleMR::harmonise_data(exposures, outcomes))
-    }
-      d <- TwoSampleMR::add_metadata(d, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
-      texp <- d %>% dplyr::group_by(id.outcome) %>%
-                  dplyr::summarise(units = units.outcome[1], sample = samplesize.outcome[1])
-      if(any(is.na(texp$units))){
-        message("Unit information is missing: Run x$standardise_units()")
-      }
-      if(!any(is.na(texp$units)) & length(unique(texp$units)) != 1){
-        message("Units for the beta are different across the populations: See vignettes")
-        print(texp$units)
-      } 
-      suppressMessages(mr <- TwoSampleMR::mr(d, method="mr_ivw"))
-      invisible(lapply(1:nrow(mr), function(i){
-        message(paste0("Instrument associations between ", mr$id.exposure[i], " and ", mr$id.outcome[i], " is ", round(mr$b[i], 3), "; NSNP = ", length(unique(snps))))
-      }))
-  },
-
-
- instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni")
-  {
-    if(alpha=="bonferroni")
-    {
-      alpha <- 0.05/nrow(instrument)
-    }
-
-    if(!any(names(instrument) %in% c("beta.outcome")))
-    {
-      o <- lapply(self$exposure_ids, function(i)
-      {
-        m <- subset(instrument, id == i & p < alpha) 
-        other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
-
-        o <- lapply(other_ids, function(j)
-            {
-              n <- subset(instrument, id == j & rsid %in% m$rsid)
-              dat <-dplyr:: inner_join(m, n, by="rsid") %>%
-                    dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
-              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                      {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
-              return(res)
-        })})
-    }
-
-    if(any(names(instrument) %in% c("beta.outcome")))
-    {
-      o <- lapply(self$outcome_ids, function(i)
-      {
-        m <- subset(instrument, id.outcome == i & pval.outcome < alpha) 
-        other_ids <- self$outcome_ids[!self$outcome_ids %in% i]
-
-        o <- lapply(other_ids, function(j)
-            {
-              n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
-              dat <-dplyr:: inner_join(m, n, by="SNP") %>%
-                    dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
-              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                      {tibble::tibble(Reference=m$id.outcome[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
-              return(res)
-        })}) 
-    }
-    print(o %>% dplyr::bind_rows()) 
-  }, 
-
-
-  standardise_units = function(exp=NULL, out=NULL){
-      if(!is.null(exp)){
-          d <- exp %>%
-                 dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
-          if(!any(d$units %in% c("log odds"))){
-              exp <- exp %>%
-                          dplyr::group_by(id) %>%
-                          tidyr::replace_na(list(units = "temp")) %>%
-                          dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
-                          dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
-          }
-          if(any(!is.na(exp$estimated_sd)))
-          {
-            stopifnot(!any(is.na(exp$estimated_sd)))
-            exp$beta <- exp$beta / exp$estimated_sd
-            exp$se <- exp$se / exp$estimated_sd
-            exp$units <- "SD"
-          }
-          self$standardised_exposure <- exp
-      }
-    if(!is.null(out)){
-          d <- out %>%
-            dplyr::group_by(id.outcome) %>% dplyr::summarise(units = units.outcome[1])
-          if(!any(d$units %in% c("log odds"))){
-            out <- out %>%
-              dplyr::group_by(id.outcome) %>%
-              tidyr::replace_na(list(units.outcome = "temp")) %>%
-              dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
-              dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))
-          }
-          if(any(!is.na(out$estimated_sd)))
-          {
-            stopifnot(!any(is.na(out$estimated_sd)))
-            out$beta.outcome <- out$beta.outcome / out$estimated_sd
-            out$se.outcome <- out$se.outcome / out$estimated_sd
-            out$units.outcome <- "SD"
-          }
-          self$standardised_outcome <- out
-    }
     invisible(self)
   },
 
@@ -293,81 +223,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   },
 
 
-  # Once a set of instruments is chosen we can ask
-  # - what fraction of those primarily identified in pop1 replicate in pop2?
-  # - what fraction of those primarily identified in pop1 have the same sign as in pop2?
-  # - compare these to what is expected by chance under the hypothesis that the effect estimates are the same
-  # this will provide some evidence for whether lack of replication is due to (e.g.) GxE
-#' @description
-#' Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
-#' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
-#' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
-  estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
-  {
-    if(alpha=="bonferroni")
-    {
-      alpha <- 0.05/nrow(instrument)
-    }
-    o <- lapply(self$exposure_ids, function(i)
-    {
-      m <- subset(instrument, id == i & p < alpha)
-      other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
-      
-      if(winnerscurse==TRUE){
-          wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid))) 
-          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = alpha, conf_level=0.95) %>% 
-                                  dplyr::mutate(rsid = sub("^", "rs",  .$rsid)) %>%
-                                  dplyr::mutate(se.cl3 = (.$upper - .$lower) / 3.92) %>% dplyr::arrange(rsid)
-          o <- lapply(other_ids, function(j)
-          {
-            n <- subset(instrument, id == j & rsid %in% wcl$rsid) %>% dplyr::arrange(rsid)
-            o <- n %>%
-              {private$prop_overlap(wcl$beta.cl3, .$beta, wcl$se.cl3, .$se, alpha)}
-            o$res <- o$res %>%
-              dplyr::mutate(discovery=i, replication=j) %>%
-              dplyr::select(discovery, replication, dplyr::everything())
-            o$variants <- o$variants %>%
-              dplyr::mutate(
-                discovery=i,
-                replication=j,
-                rsid=n$rsid,
-                p=n$p,
-                distinct=sig > 0.8 & p > 0.1
-              ) %>%
-              dplyr::select(discovery, replication, dplyr::everything())
-            return(o)
-        })}
-
-      if(winnerscurse==FALSE){
-         o <- lapply(other_ids, function(j)
-          {
-            n <- subset(instrument, id == j & rsid %in% m$rsid)
-            o <- n %>%
-              {private$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
-            o$res <- o$res %>%
-              dplyr::mutate(discovery=i, replication=j) %>%
-              dplyr::select(discovery, replication, dplyr::everything())
-            o$variants <- o$variants %>%
-              dplyr::mutate(
-                discovery=i,
-                replication=j,
-                rsid=n$rsid,
-                p=n$p,
-                distinct=sig > 0.8 & p > 0.1
-              ) %>%
-              dplyr::select(discovery, replication, dplyr::everything())
-            return(o)
-      })}
-      overall <- lapply(o, function(x) { x$res }) %>% dplyr::bind_rows()
-      pervariant <- lapply(o, function(x) { x$variants }) %>% dplyr::bind_rows()
-      return(list(overall=overall, pervariant=pervariant))
-    })
-    self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
-    self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% dplyr::bind_rows()
-    return(self$instrument_specificity_summary)
-  },
-
-
 #' @description
 #' insert
 #' @param instrument_raw insert
@@ -420,7 +275,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)
     {
       subset(self$instrument_maxz, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)
-    }) %>% dplyr::bind_rows()
+    }) %>% dplyr::bind_rows() %>% dplyr::mutate(method = "maxz") 
   },
 
 #' @description
@@ -428,6 +283,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param region insert
 #' @param instrument_region_zscores insert
 #' @param instruments insert
+#' @param comparison insert
   plot_regional_instruments = function(instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw, region=1:min(10, nrow(instruments)), comparison=FALSE)
   {
       a <- instrument_region_zscores[region]
@@ -537,7 +393,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     invisible(self)
   },
 
-
+#' @description
+#' insert
+#' @param instrument insert
+#' @param ld insert
   replication_evaluation = function(instrument=self$instrument_raw, ld=self$ld_matrices){
     instrument_pop <- instrument %>% dplyr::group_split(id)
 
@@ -591,6 +450,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
   # find credible sets that overlap - to try to determine the best SNP in a region to be used as instrument
+#' @description
+#' insert
+#' @param dat insert
+#' @param ld insert
  susie_finemap_regions = function(dat=self$instrument_regions, ld=self$ld_matrices)
   {
    resnps <- names(ld)
@@ -682,7 +545,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
           dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>% dplyr::select(id, units, samplesize)
    
    instrument_susie <- dplyr::left_join(instrument_susie, t, by = "id") %>% as.data.frame()
-   instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)}) %>% dplyr::bind_rows()
+   instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)}) %>% dplyr::bind_rows() %>%
+                       dplyr::mutate(method = "susie")
    self$instrument_susie <- instrument_susie
    invisible(self)
   },
@@ -692,6 +556,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # Choose the variant with highest posterior probability and associations in each exposure
   #' @description insert
   #' @param regiondata Output from extract_regional_data
+  #' @param ld insert
   #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
   #' @param workdir Working directory. Default=tempdir()
   paintor_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, PAINTOR="PAINTOR", workdir=tempdir())
@@ -777,14 +642,16 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     instrument_paintor <- dplyr::left_join(instrument_paintor, t, by = "id") %>% as.data.frame()
     instrument_paintor <- lapply(id, function(i) {tryCatch({
       subset(instrument_paintor, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)
-      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})}) %>% dplyr::bind_rows()
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})}) %>% dplyr::bind_rows() %>%
+      dplyr::mutate(method = "paintor")
     self$instrument_paintor <- instrument_paintor
     invisible(self)
   },
 
 
   #' @description Analyse regional data with MsCAVIAR
-  #' @param regiondata Output from extract_regional_data
+  #' @param region Output from extract_regional_data
+  #' @param ld insert
   #' @param MsCAVIAR Path to MsCAVIAR executable. Default="MsCAVIAR"
   #' @param workdir Working directory. Default=tempdir()
   MsCAVIAR_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, MsCAVIAR="MsCAVIAR", workdir=tempdir())
@@ -809,7 +676,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                     return(tibble::as_tibble(zs))
                 })
           })
-
 
     lapply(1:nid, function(i)
       {lapply(1:length(id), function(id)
@@ -879,12 +745,205 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         dplyr::select(id, units, samplesize)
       instrument_mscaviar <- dplyr::left_join(instrument_mscaviar, t, by = "id") %>% as.data.frame()
       instrument_mscaviar <- lapply(id, function(i) {subset(instrument_mscaviar, id == i)}) %>% dplyr::bind_rows() %>%
-                             dplyr::relocate(rsid, chr, position, id, beta, se, p, ea, nea, units, samplesize)
+                             dplyr::relocate(rsid, chr, position, id, beta, se, p, ea, nea, units, samplesize) %>%
+                             dplyr::mutate(method = "mscaviar")
       self$instrument_mscaviar <- instrument_mscaviar
       invisible(self)
   },
 
+#' @description
+#' Evaluate heterogeneity of identified instrument-trait associations across populations, where the instruments were identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
+#' @param instrument Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param alpha insert
+ instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni")
+  {
+    if(alpha=="bonferroni")
+    {
+      alpha <- 0.05/nrow(instrument)
+    }
 
+    if(!any(names(instrument) %in% c("beta.outcome")))
+    {
+      o <- lapply(self$exposure_ids, function(i)
+      {
+        m <- subset(instrument, id == i & p < alpha) 
+        other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+
+        o <- lapply(other_ids, function(j)
+            {
+              n <- subset(instrument, id == j & rsid %in% m$rsid)
+              dat <-dplyr:: inner_join(m, n, by="rsid") %>%
+                    dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                      {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+              return(res)
+        })})
+    }
+
+    if(any(names(instrument) %in% c("beta.outcome")))
+    {
+      o <- lapply(self$outcome_ids, function(i)
+      {
+        m <- subset(instrument, id.outcome == i & pval.outcome < alpha) 
+        other_ids <- self$outcome_ids[!self$outcome_ids %in% i]
+
+        o <- lapply(other_ids, function(j)
+            {
+              n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
+              dat <-dplyr:: inner_join(m, n, by="SNP") %>%
+                    dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                      {tibble::tibble(Reference=m$id.outcome[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+              return(res)
+        })}) 
+    }
+    print(o %>% dplyr::bind_rows()) 
+  }, 
+
+#' @description
+#' insert
+#' @param standardised_unit insert
+#' @param standardised_scale insert
+  standardise_data = function(dat=self$instrument_raw, standardised_unit=FALSE, standardised_scale=FALSE)
+  {
+    if(standardised_unit=TRUE)
+    {
+      if(!any(names(dat) %in% c("beta.outcome")))
+      {
+       exp <- dat
+       d <- exp %>%
+              dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
+       if(!any(d$units %in% c("log odds"))){
+           exp <- exp %>%
+                       dplyr::group_by(id) %>%
+                       tidyr::replace_na(list(units = "temp")) %>%
+                       dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
+                       dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
+       }
+       if(any(!is.na(exp$estimated_sd)))
+       {
+         stopifnot(!any(is.na(exp$estimated_sd)))
+         exp$beta <- exp$beta / exp$estimated_sd
+         exp$se <- exp$se / exp$estimated_sd
+         exp$units <- "SD"
+       }
+  
+       if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
+       if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
+       if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
+       if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
+       if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
+      }
+
+    if(any(names(dat) %in% c("beta.outcome")))
+      {
+        out <- dat
+        d <- out %>%
+             dplyr::group_by(id.outcome) %>% dplyr::summarise(units = units.outcome[1])
+        if(!any(d$units %in% c("log odds"))){
+          out <- out %>%
+              dplyr::group_by(id.outcome) %>%
+              tidyr::replace_na(list(units.outcome = "temp")) %>%
+              dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
+              dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))
+          }
+        if(any(!is.na(out$estimated_sd)))
+          {
+            stopifnot(!any(is.na(out$estimated_sd)))
+            out$beta.outcome <- out$beta.outcome / out$estimated_sd
+            out$se.outcome <- out$se.outcome / out$estimated_sd
+            out$units.outcome <- "SD"
+          }
+        self$standardised_outcome <- out
+      }
+    }
+
+    if(standardised_scale=TRUE)
+    {
+     if(!any(names(dat) %in% c("beta.outcome")))
+      { 
+        stopifnot(!is.null(self$instrument_maxz))
+        scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)
+      }
+
+    }
+    invisible(self)
+  },
+
+  # Once a set of instruments is chosen we can ask
+  # - what fraction of those primarily identified in pop1 replicate in pop2?
+  # - what fraction of those primarily identified in pop1 have the same sign as in pop2?
+  # - compare these to what is expected by chance under the hypothesis that the effect estimates are the same
+  # this will provide some evidence for whether lack of replication is due to (e.g.) GxE
+#' @description
+#' Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
+#' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
+#' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
+#' @param winnerscurse insert
+  estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
+  {
+    if(alpha=="bonferroni")
+    {
+      alpha <- 0.05/nrow(instrument)
+    }
+    o <- lapply(self$exposure_ids, function(i)
+    {
+      m <- subset(instrument, id == i & p < alpha)
+      other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+      
+      if(winnerscurse==TRUE){
+          wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid))) 
+          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = alpha, conf_level=0.95) %>% 
+                                  dplyr::mutate(rsid = sub("^", "rs",  .$rsid)) %>%
+                                  dplyr::mutate(se.cl3 = (.$upper - .$lower) / 3.92) %>% dplyr::arrange(rsid)
+          o <- lapply(other_ids, function(j)
+          {
+            n <- subset(instrument, id == j & rsid %in% wcl$rsid) %>% dplyr::arrange(rsid)
+            o <- n %>%
+              {private$prop_overlap(wcl$beta.cl3, .$beta, wcl$se.cl3, .$se, alpha)}
+            o$res <- o$res %>%
+              dplyr::mutate(discovery=i, replication=j) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            o$variants <- o$variants %>%
+              dplyr::mutate(
+                discovery=i,
+                replication=j,
+                rsid=n$rsid,
+                p=n$p,
+                distinct=sig > 0.8 & p > 0.1
+              ) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            return(o)
+        })}
+
+      if(winnerscurse==FALSE){
+         o <- lapply(other_ids, function(j)
+          {
+            n <- subset(instrument, id == j & rsid %in% m$rsid)
+            o <- n %>%
+              {private$prop_overlap(m$beta, .$beta, m$se, .$se, alpha)}
+            o$res <- o$res %>%
+              dplyr::mutate(discovery=i, replication=j) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            o$variants <- o$variants %>%
+              dplyr::mutate(
+                discovery=i,
+                replication=j,
+                rsid=n$rsid,
+                p=n$p,
+                distinct=sig > 0.8 & p > 0.1
+              ) %>%
+              dplyr::select(discovery, replication, dplyr::everything())
+            return(o)
+      })}
+      overall <- lapply(o, function(x) { x$res }) %>% dplyr::bind_rows()
+      pervariant <- lapply(o, function(x) { x$variants }) %>% dplyr::bind_rows()
+      return(list(overall=overall, pervariant=pervariant))
+    })
+    self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
+    self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% dplyr::bind_rows()
+    return(self$instrument_specificity_summary)
+  },
 
   # Once a set of instruments is defined then extract the outcome data
   # Could use
@@ -902,12 +961,19 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                               subset(exp, id == self$exposure_ids[[2]]),
                               by="rsid"
                               ) %>% dplyr::filter(p.x < p_exp)
-      out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids)
-      out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd"))
+      suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids))
+      suppressMessages(out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>%
+                              #dplyr::select(rsid=SNP, chr, position=pos, id=id.outcome, beta=beta.outcome, se=se.outcome, p=pval.exposure, ea=effect_allele.outcome, nea=other_allele.outcome, eaf=eaf.outcome, units=units.outcome, samplesize=contains("size")) %>%
+                              as.data.frame()
+                      )
       self$instrument_outcome <- out
       invisible(self)
   },
 
+#' @description
+#' insert
+#' @param exp insert
+#' @param out insert
   harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
@@ -923,12 +989,11 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       self$harmonised_dat_sem <- dat
   },
 
-
-  # Generate harmonised dataset
-  # Perform basic SEM analysis of the joint estimates in multiple ancestries
-  #' @description
-  #' insert
-  #' @param harmonised_dat insert
+# Generate harmonised dataset
+# Perform basic SEM analysis of the joint estimates in multiple ancestries
+#' @description
+#' insert
+#' @param harmonised_dat insert
   perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
       d <- harmonised_dat %>%
            dplyr::mutate(r1 = y1/x1) %>%
