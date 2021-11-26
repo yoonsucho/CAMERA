@@ -806,6 +806,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param standardised_scale insert
   standardise_data = function(dat=self$instrument_raw, standardised_unit=FALSE, standardised_scale=FALSE)
   {
+    id <- unique(self$instrument_raw$id)
     if(standardised_unit==TRUE)
     {
       if(!any(names(dat) %in% c("beta.outcome")))
@@ -868,8 +869,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         exp <- dat %>%
             dplyr::mutate(original_beta = beta) %>%
             dplyr::mutate(original_se = se) %>%
-            dplyr::mutate(beta = ifelse(id == scale$Reference[1], beta * bxx, ifelse(id == scale$Reference[2], original_beta, original_beta))) %>%
-            dplyr::mutate(se = ifelse(id == scale$Reference[1], se * bxx, ifelse(id == scale$Reference[2], original_se, original_se)))
+            dplyr::mutate(beta = ifelse(id == id[2], beta * bxx, ifelse(id == scale$Reference[2], original_beta, original_beta))) %>%
+            dplyr::mutate(se = ifelse(id == id[2], se * bxx, ifelse(id == scale$Reference[2], original_se, original_se)))
 
         if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
         if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
@@ -888,8 +889,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         out <- out %>% 
             dplyr::mutate(original_beta = beta.outcome) %>%
             dplyr::mutate(original_se = se.outcome) %>%
-            dplyr::mutate(beta.outcome = ifelse(id.outcome == scale$Reference[1], beta.outcome * byy, original_beta)) %>%
-            dplyr::mutate(se.outcome = ifelse(id.outcome == scale$Reference[1], se.outcome * byy, original_se))
+            dplyr::mutate(beta.outcome = ifelse(id.outcome == id[2], beta.outcome * byy, original_beta)) %>%
+            dplyr::mutate(se.outcome = ifelse(id.outcome == id[2], se.outcome * byy, original_se))
 
         self$standardised_outcome <- out
       }
