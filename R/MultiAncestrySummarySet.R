@@ -96,14 +96,14 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             suppressMessages(d <- TwoSampleMR::harmonise_data(exp, out))
 
             res <- suppressMessages(TwoSampleMR::mr(d, method="mr_ivw")) %>%
-                     {tibble::tibble(Reference=i, discovery=j, nsnp=.$nsnp, agreement=.$b, se=.$se, pval=.$pval)}
+                     {tibble::tibble(Reference=i, Replication=j, nsnp=.$nsnp, agreement=.$b, se=.$se, pval=.$pval)}
 
             message(paste0("Instrument associations between ", i, " and ", j, " is ", round(res$agreement, 3), "; NSNP=", res$nsnp))
             
             suppressMessages(
               t <- d %>% data.frame() %>% 
                   TwoSampleMR::add_metadata(., cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>% 
-                  dplyr::summarise(unit_ref = .$units.exposure[1], unit_disc = .$units.outcome[1])
+                  dplyr::summarise(unit_ref = .$units.exposure[1], unit_rep = .$units.outcome[1])
             )
 
             if(any(is.na(t))){
@@ -111,7 +111,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                print(t)
               }
       
-            if(!any(is.na(t)) & t$unit_ref!=t$unit_disc){
+            if(!any(is.na(t)) & t$unit_ref!=t$unit_rep){
                 message("Units for the beta are different across the populations: See vignettes")
                 print(t)
               }
@@ -775,7 +775,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
               dat <-dplyr:: inner_join(m, n, by="rsid") %>%
                     dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
               res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                      {tibble::tibble(Reference=m$id[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+                      {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })})
     }
@@ -793,7 +793,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
               dat <-dplyr:: inner_join(m, n, by="SNP") %>%
                     dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
               res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                      {tibble::tibble(Reference=m$id.outcome[[1]], nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+                      {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })}) 
     }
@@ -806,7 +806,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param standardised_scale insert
   standardise_data = function(dat=self$instrument_raw, standardised_unit=FALSE, standardised_scale=FALSE)
   {
-    if(standardised_unit=TRUE)
+    if(standardised_unit==TRUE)
     {
       if(!any(names(dat) %in% c("beta.outcome")))
       {
@@ -858,15 +858,43 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }
     }
 
-    if(standardised_scale=TRUE)
+    if(standardised_scale==TRUE)
     {
      if(!any(names(dat) %in% c("beta.outcome")))
       { 
         stopifnot(!is.null(self$instrument_maxz))
-        scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
+        bxx <- scale$agreement[1]
+        exp <- dat %>%
+            dplyr::mutate(original_beta = beta) %>%
+            dplyr::mutate(original_se = se) %>%
+            dplyr::mutate(beta = ifelse(id == scale$Reference[1], beta * bxx, ifelse(id == scale$Reference[2], original_beta, original_beta))) %>%
+            dplyr::mutate(se = ifelse(id == scale$Reference[1], se * bxx, ifelse(id == scale$Reference[2], original_se, original_se)))
+
+        if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
+        if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
+        if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
+        if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
+        if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
       }
 
+    if(any(names(dat) %in% c("beta.outcome")))
+      {
+        stopifnot(!is.null(self$instrument_maxz))
+        self$make_outcome_data(exp=self$instrument_maxz)
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_outcome)))
+        byy <- scale$agreement[1]
+        out <- dat
+        out <- out %>% 
+            dplyr::mutate(original_beta = beta.outcome) %>%
+            dplyr::mutate(original_se = se.outcome) %>%
+            dplyr::mutate(beta.outcome = ifelse(id.outcome == scale$Reference[1], beta.outcome * byy, original_beta)) %>%
+            dplyr::mutate(se.outcome = ifelse(id.outcome == scale$Reference[1], se.outcome * byy, original_se))
+
+        self$standardised_outcome <- out
+      }
     }
+
     invisible(self)
   },
 

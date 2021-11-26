@@ -102,3 +102,23 @@ MultiAncestrySummarySet$set("private", "jackknife2", function (x, theta, ...)
   return(list(jack.se = jack.se, jack.sd = jack.sd, jack.bias = jack.bias, jack.values = u,
               call = call))
 })
+
+MultiAncestrySummarySet$set("private", "sd_standardise", function (dat=dat)
+{
+ d <- dat %>%
+        dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
+ if(!any(d$units %in% c("log odds"))){
+     dat <- dat %>%
+                 dplyr::group_by(id) %>%
+                 tidyr::replace_na(list(units = "temp")) %>%
+                 dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
+                 dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
+ }
+ if(any(!is.na(dat$estimated_sd)))
+ {
+   stopifnot(!any(is.na(dat$estimated_sd)))
+   dat$beta <- dat$beta / dat$estimated_sd
+   dat$se <- dat$se / dat$estimated_sd
+   dat$units <- "SD"
+ }
+})
