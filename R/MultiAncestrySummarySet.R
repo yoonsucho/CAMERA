@@ -85,7 +85,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param ids ID for the exposure or the outcome. Default is x$exposure_ids.
   check_phenotypes = function(ids=self$exposure_ids)
   {
-    o <- lapply(ids, function(i)
+    o <- lapply(ids, function(i) {tryCatch(
       {
         suppressMessages(exp <- unique(TwoSampleMR::extract_instruments(outcomes=i)))
         other_ids <- ids[!ids %in% i]
@@ -118,7 +118,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             return(res)
           })
         return(o %>% dplyr::bind_rows())
-      })
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})})
     print(o %>% dplyr::bind_rows())
   },
 
