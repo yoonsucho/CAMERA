@@ -806,7 +806,6 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 #' @param standardised_scale insert
   standardise_data = function(dat=self$instrument_raw, standardised_unit=FALSE, standardised_scale=FALSE)
   {
-    id <- unique(self$instrument_raw$id)
     if(standardised_unit==TRUE)
     {
       if(!any(names(dat) %in% c("beta.outcome")))
@@ -863,6 +862,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
      if(!any(names(dat) %in% c("beta.outcome")))
       { 
+        id <- self$exposure_ids
         stopifnot(!is.null(self$instrument_maxz))
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
         bxx <- scale$agreement[1]
@@ -881,9 +881,20 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     if(any(names(dat) %in% c("beta.outcome")))
       {
-        stopifnot(!is.null(self$instrument_maxz))
-        self$make_outcome_data(exp=self$instrument_maxz)
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_outcome)))
+        id <- self$outcome_ids
+        stopifnot(!is.null(self$instrument_outcome))
+        oexp <- self$exposure_ids
+        oraw <- self$instrument_raw
+        omaxz <- self$instrument_maxz
+        ore <- self$instrument_regions
+        oz <- self$instrument_region_zscores
+
+        self$exposure_ids <- self$outcome_ids
+        suppressMessages(self$extract_instruments())
+        suppressMessages(self$extract_instrument_regions())
+        suppressMessages(self$scan_regional_instruments())
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
+
         byy <- scale$agreement[1]
         out <- dat
         out <- out %>% 
@@ -891,6 +902,12 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             dplyr::mutate(original_se = se.outcome) %>%
             dplyr::mutate(beta.outcome = ifelse(id.outcome == id[2], beta.outcome * byy, original_beta)) %>%
             dplyr::mutate(se.outcome = ifelse(id.outcome == id[2], se.outcome * byy, original_se))
+
+        self$exposure_ids <- oexp
+        self$instrument_raw <- oraw
+        self$instrument_maxz <- omaxz
+        self$instrument_regions <- ore
+        self$instrument_region_zscores <- oz
 
         self$standardised_outcome <- out
       }
