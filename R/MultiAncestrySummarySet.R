@@ -870,8 +870,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         exp <- dat %>%
             dplyr::mutate(original_beta = beta) %>%
             dplyr::mutate(original_se = se) %>%
-            dplyr::mutate(beta = dplyr::case_when(id == self$exposure_ids[1] ~ beta * bxx, TRUE ~ beta)) %>%
-            dplyr::mutate(se = dplyr::case_when(id == self$exposure_ids[1] ~ se * bxx, TRUE ~ se)) %>% 
+            dplyr::mutate(beta = dplyr::case_when(id == self$exposure_ids[2] ~ beta * bxx, TRUE ~ beta)) %>%
+            dplyr::mutate(se = dplyr::case_when(id == self$exposure_ids[2] ~ se * bxx, TRUE ~ se)) %>% 
             as.data.frame()
 
         if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
@@ -902,8 +902,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         out <- out %>% 
             dplyr::mutate(original_beta = beta.outcome) %>%
             dplyr::mutate(original_se = se.outcome) %>%
-            dplyr::mutate(beta.outcome = dplyr::case_when(id.outcome == self$outcome_ids[1] ~ beta.outcome * byy, TRUE ~ beta.outcome)) %>%
-            dplyr::mutate(se.outcome = dplyr::case_when(id.outcome == self$outcome_ids[1] ~ se.outcome * byy, TRUE ~ se.outcome)) %>%
+            dplyr::mutate(beta.outcome = dplyr::case_when(id.outcome == self$outcome_ids[2] ~ beta.outcome * byy, TRUE ~ beta.outcome)) %>%
+            dplyr::mutate(se.outcome = dplyr::case_when(id.outcome == self$outcome_ids[2] ~ se.outcome * byy, TRUE ~ se.outcome)) %>%
             as.data.frame()
 
         self$exposure_ids <- oexp
