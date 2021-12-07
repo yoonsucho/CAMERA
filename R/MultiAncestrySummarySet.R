@@ -827,7 +827,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
          exp$se <- exp$se / exp$estimated_sd
          exp$units <- "SD"
        }
-  
+
+       exp <- exp %>% as.data.frame()
+
        if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
        if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
        if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
@@ -854,7 +856,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             out$se.outcome <- out$se.outcome / out$estimated_sd
             out$units.outcome <- "SD"
           }
-        self$standardised_outcome <- out
+        self$standardised_outcome <- out %>% as.data.frame()
       }
     }
 
@@ -862,15 +864,15 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
      if(!any(names(dat) %in% c("beta.outcome")))
       { 
-        id <- self$exposure_ids
         stopifnot(!is.null(self$instrument_maxz))
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
         bxx <- scale$agreement[1]
         exp <- dat %>%
             dplyr::mutate(original_beta = beta) %>%
             dplyr::mutate(original_se = se) %>%
-            dplyr::mutate(beta = ifelse(id == id[2], beta * bxx, ifelse(id == scale$Reference[2], original_beta, original_beta))) %>%
-            dplyr::mutate(se = ifelse(id == id[2], se * bxx, ifelse(id == scale$Reference[2], original_se, original_se)))
+            dplyr::mutate(beta = dplyr::case_when(id == self$exposure_ids[1] ~ beta * bxx, TRUE ~ beta)) %>%
+            dplyr::mutate(se = dplyr::case_when(id == self$exposure_ids[1] ~ se * bxx, TRUE ~ se)) %>% 
+            as.data.frame()
 
         if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
         if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
@@ -881,8 +883,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     if(any(names(dat) %in% c("beta.outcome")))
       {
-        id <- self$outcome_ids
         stopifnot(!is.null(self$instrument_outcome))
+
         oexp <- self$exposure_ids
         oraw <- self$instrument_raw
         omaxz <- self$instrument_maxz
@@ -890,9 +892,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         oz <- self$instrument_region_zscores
 
         self$exposure_ids <- self$outcome_ids
-        suppressMessages(self$extract_instruments())
-        suppressMessages(self$extract_instrument_regions())
-        suppressMessages(self$scan_regional_instruments())
+        suppressMessages(self$extract_instruments(exposure_ids=self$exposure_ids))
+        suppressMessages(self$extract_instrument_regions(instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids))
+        suppressMessages(self$scan_regional_instruments(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions))
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
 
         byy <- scale$agreement[1]
@@ -900,8 +902,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         out <- out %>% 
             dplyr::mutate(original_beta = beta.outcome) %>%
             dplyr::mutate(original_se = se.outcome) %>%
-            dplyr::mutate(beta.outcome = ifelse(id.outcome == id[2], beta.outcome * byy, original_beta)) %>%
-            dplyr::mutate(se.outcome = ifelse(id.outcome == id[2], se.outcome * byy, original_se))
+            dplyr::mutate(beta.outcome = dplyr::case_when(id.outcome == self$outcome_ids[1] ~ beta.outcome * byy, TRUE ~ beta.outcome)) %>%
+            dplyr::mutate(se.outcome = dplyr::case_when(id.outcome == self$outcome_ids[1] ~ se.outcome * byy, TRUE ~ se.outcome)) %>%
+            as.data.frame()
 
         self$exposure_ids <- oexp
         self$instrument_raw <- oraw
@@ -909,7 +912,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         self$instrument_regions <- ore
         self$instrument_region_zscores <- oz
 
-        self$standardised_outcome <- out
+        self$standardised_outcome <- out 
       }
     }
 
@@ -1012,7 +1015,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                               #dplyr::select(rsid=SNP, chr, position=pos, id=id.outcome, beta=beta.outcome, se=se.outcome, p=pval.exposure, ea=effect_allele.outcome, nea=other_allele.outcome, eaf=eaf.outcome, units=units.outcome, samplesize=contains("size")) %>%
                               as.data.frame()
                       )
-      self$instrument_outcome <- out
+      self$instrument_outcome <- out %>% dplyr::arrange(., chr, SNP)
       invisible(self)
   },
 
