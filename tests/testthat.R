@@ -1,4 +1,4 @@
 library(testthat)
-library(TAMR)
+library(CAMERA)
 
-test_check("TAMR")
+test_check("CAMERA")

@@ -1,4 +1,4 @@
-MultiAncestrySummarySet$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, alpha)
+CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, alpha)
 {
   p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
   p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
@@ -13,7 +13,7 @@ MultiAncestrySummarySet$set("private", "prop_overlap", function(b_disc, b_rep, s
 })
 
 
-MultiAncestrySummarySet$set("private", "susie_overlaps", function(su1, su2)
+CAMERA$set("private", "susie_overlaps", function(su1, su2)
 {
   l <- list()
   k <- 1
@@ -47,7 +47,7 @@ MultiAncestrySummarySet$set("private", "susie_overlaps", function(su1, su2)
 })
 
 
-MultiAncestrySummarySet$set("private", "runsem", function(model, data, modname)
+CAMERA$set("private", "runsem", function(model, data, modname)
 {
   mod <- lavaan::sem(model, data=data)
   invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
@@ -64,7 +64,7 @@ MultiAncestrySummarySet$set("private", "runsem", function(model, data, modname)
 })
 
 
-MultiAncestrySummarySet$set("private", "greedy_remove", function(r, thresh)
+CAMERA$set("private", "greedy_remove", function(r, thresh)
 {
   diag(r) <- 0
   r <- abs(r)
@@ -87,7 +87,7 @@ MultiAncestrySummarySet$set("private", "greedy_remove", function(r, thresh)
 })
 
 
-MultiAncestrySummarySet$set("private", "jackknife2", function (x, theta, ...)
+CAMERA$set("private", "jackknife2", function (x, theta, ...)
 {
   call <- match.call()
   n <- length(x)
@@ -103,7 +103,7 @@ MultiAncestrySummarySet$set("private", "jackknife2", function (x, theta, ...)
               call = call))
 })
 
-MultiAncestrySummarySet$set("private", "sd_standardise", function (dat=dat)
+CAMERA$set("private", "sd_standardise", function (dat=dat)
 {
  d <- dat %>%
         dplyr::group_by(id) %>% dplyr::summarise(units = units[1])

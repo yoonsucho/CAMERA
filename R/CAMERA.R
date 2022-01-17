@@ -1,11 +1,11 @@
-#' R6 class for TAMR
+#' R6 class for CAMERA
 #'
 #' @description
 #' A simple wrapper function.
 #' Using a summary set, identify set of instruments for the traits, and peform SEM MR to test the association across the population.
 #' @export
 
-MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
+CAMERA <- R6::R6Class("CAMERA", list(
   output = list(),
   exposure_ids=NULL,
   outcome_ids=NULL,
@@ -28,10 +28,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   instrument_mscaviar = NULL,
   harmonised_data_check=NULL,
   standardised_instrument_raw=NULL,
-  standardised_instrument_maxz=NULL, 
+  standardised_instrument_maxz=NULL,
   standardised_instrument_susie=NULL,
   standardised_instrument_paintor=NULL,
-  standardised_instrument_mscaviar=NULL, 
+  standardised_instrument_mscaviar=NULL,
   standardised_outcome=NULL,
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
@@ -39,10 +39,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   harmonised_dat_sem = NULL,
   sem_result = NULL,
 
-# for convenience can migrate the results from a previous MultiAncestrySummarySet into this one
+# for convenience can migrate the results from a previous CAMERA into this one
 #' @description
-#' Migrate the results from a previous MultiAncestrySummarySet
-  import = function(x) 
+#' Migrate the results from a previous CAMERA
+  import = function(x)
   {
     nom <- names(self)
     for(i in nom)
@@ -99,10 +99,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                      {tibble::tibble(Reference=i, Replication=j, nsnp=.$nsnp, agreement=.$b, se=.$se, pval=.$pval)}
 
             message(paste0("Instrument associations between ", i, " and ", j, " is ", round(res$agreement, 3), "; NSNP=", res$nsnp))
-            
+
             suppressMessages(
-              t <- d %>% data.frame() %>% 
-                  TwoSampleMR::add_metadata(., cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>% 
+              t <- d %>% data.frame() %>%
+                  TwoSampleMR::add_metadata(., cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>%
                   dplyr::summarise(unit_ref = .$units.exposure[1], unit_rep = .$units.outcome[1])
             )
 
@@ -110,7 +110,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
                message("Unit information is missing: Run x$standardise_units()")
                print(t)
               }
-      
+
             if(!any(is.na(t)) & t$unit_ref!=t$unit_rep){
                 message("Units for the beta are different across the populations: See vignettes")
                 print(t)
@@ -143,7 +143,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       subset(instrument_raw, id.exposure==id)
     }) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=contains("size")) %>% 
+      dplyr::select(rsid=SNP, chr, position, id=id.exposure, beta=beta.exposure, se=se.exposure, p=pval.exposure, ea=effect_allele.exposure, nea=other_allele.exposure, eaf=eaf.exposure, units=units.exposure, samplesize=contains("size")) %>%
       dplyr::mutate(method="raw") %>% as.data.frame
     # Check if top hits are significant in both populations
     t <- instrument_raw %>% dplyr::group_by(id) %>%
@@ -275,7 +275,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     self$instrument_maxz <- lapply(self$exposure_ids, function(i)
     {
       subset(self$instrument_maxz, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)
-    }) %>% dplyr::bind_rows() %>% dplyr::mutate(method = "maxz") 
+    }) %>% dplyr::bind_rows() %>% dplyr::mutate(method = "maxz")
   },
 
 #' @description
@@ -402,9 +402,9 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
     rep <- instrument_pop[[1]] %>% dplyr::select(rsid)
     rep$sign <- sign(instrument_pop[[1]]$beta)==sign(instrument_pop[[2]]$beta)
-    rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8 
-    
-    fam1 <- read.table(paste0(self$bfiles[[1]], ".fam"), header = FALSE) 
+    rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8
+
+    fam1 <- read.table(paste0(self$bfiles[[1]], ".fam"), header = FALSE)
     n1 <- length(unique(fam1[[1]]))
 
     ldsc_pop1 <- lapply(1:length(ld), function(i){
@@ -413,13 +413,13 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       l <- mean(r2[lower.tri(r2)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
-    
-    fam2 <- read.table(paste0(self$bfiles[[2]], ".fam"), header = FALSE) 
+
+    fam2 <- read.table(paste0(self$bfiles[[2]], ".fam"), header = FALSE)
     n2 <- length(unique(fam2[[1]]))
 
     ldsc_pop2 <- lapply(1:length(ld), function(i){
       ld <- ld[[i]][[2]]
-      r2 <- ((n2-1) / (n2-2) * (ld^2)) - (1/(n2-2)) 
+      r2 <- ((n2-1) / (n2-2) * (ld^2)) - (1/(n2-2))
       l <- mean(r2[lower.tri(r2)]^2, diag=FALSE)
       return(l)
     }) %>% unlist()
@@ -427,8 +427,8 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     rep$delta_ld <- ldsc_pop1 - ldsc_pop2
 
     instrument_pop <- lapply(1:length(self$exposure_ids), function(i){
-                               instrument_pop[[i]] %>% dplyr::mutate(maf = dplyr::if_else(.$eaf>0.5, (1-.$eaf), .$eaf, NA_real_)) 
-                            })   
+                               instrument_pop[[i]] %>% dplyr::mutate(maf = dplyr::if_else(.$eaf>0.5, (1-.$eaf), .$eaf, NA_real_))
+                            })
 
     maf_pop1 <- instrument_pop[[1]]$maf * (1-instrument_pop[[1]]$maf)
     maf_pop2 <- instrument_pop[[2]]$maf * (1-instrument_pop[[2]]$maf)
@@ -534,16 +534,16 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
    #susie <- susie[!sapply(susie, is.null)]
    o <- unique(lapply(resnps, function(r) {susie[[r]]$bestsnp}) %>% unlist())
    instrument_susie <- lapply(resnps, function(r){tryCatch({
-     lapply(exp, function(id){ 
+     lapply(exp, function(id){
           dat[[r]][[id]] %>% subset(., rsid %in% o) %>%
-                            dplyr::bind_rows() %>% 
-                            dplyr::arrange(id, chr, position)}) 
+                            dplyr::bind_rows() %>%
+                            dplyr::arrange(id, chr, position)})
       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     }) %>% dplyr::bind_rows() %>% as.data.frame()
 
-   t <- self$instrument_raw %>% 
+   t <- self$instrument_raw %>%
           dplyr::group_by(id) %>% dplyr::filter(dplyr::row_number()==1) %>% dplyr::select(id, units, samplesize)
-   
+
    instrument_susie <- dplyr::left_join(instrument_susie, t, by = "id") %>% as.data.frame()
    instrument_susie <- lapply(exp, function(i){subset(instrument_susie, id == i) %>% dplyr::distinct(., rsid, .keep_all = TRUE)}) %>% dplyr::bind_rows() %>%
                        dplyr::mutate(method = "susie")
@@ -555,7 +555,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
   # returns a posterior probability of inclusion for each SNP
   # Choose the variant with highest posterior probability and associations in each exposure
   #' @description insert
-  #' @param regiondata Output from extract_regional_data
+  #' @param region Output from extract_regional_data
   #' @param ld insert
   #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
   #' @param workdir Working directory. Default=tempdir()
@@ -766,7 +766,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
       o <- lapply(self$exposure_ids, function(i)
       {
-        m <- subset(instrument, id == i & p < alpha) 
+        m <- subset(instrument, id == i & p < alpha)
         other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
 
         o <- lapply(other_ids, function(j)
@@ -784,7 +784,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
       o <- lapply(self$outcome_ids, function(i)
       {
-        m <- subset(instrument, id.outcome == i & pval.outcome < alpha) 
+        m <- subset(instrument, id.outcome == i & pval.outcome < alpha)
         other_ids <- self$outcome_ids[!self$outcome_ids %in% i]
 
         o <- lapply(other_ids, function(j)
@@ -795,18 +795,19 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
               res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
                       {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
-        })}) 
+        })})
     }
-    print(o %>% dplyr::bind_rows()) 
-  }, 
+    print(o %>% dplyr::bind_rows())
+  },
 
 #' @description
 #' insert
-#' @param standardised_unit insert
-#' @param standardised_scale insert
-  standardise_data = function(dat=self$instrument_raw, standardised_unit=FALSE, standardised_scale=FALSE)
+#' @param dat insert
+#' @param standardise_unit insert
+#' @param standardise_scale insert
+  standardise_data = function(dat=self$instrument_raw, standardise_unit=FALSE, standardise_scale=FALSE)
   {
-    if(standardised_unit==TRUE)
+    if(standardise_unit==TRUE)
     {
       if(!any(names(dat) %in% c("beta.outcome")))
       {
@@ -860,10 +861,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
       }
     }
 
-    if(standardised_scale==TRUE)
+    if(standardise_scale==TRUE)
     {
      if(!any(names(dat) %in% c("beta.outcome")))
-      { 
+      {
         stopifnot(!is.null(self$instrument_maxz))
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
         bxx <- scale$agreement[1]
@@ -871,7 +872,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
             dplyr::mutate(original_beta = beta) %>%
             dplyr::mutate(original_se = se) %>%
             dplyr::mutate(beta = dplyr::case_when(id == self$exposure_ids[1] ~ beta * bxx, TRUE ~ beta)) %>%
-            dplyr::mutate(se = dplyr::case_when(id == self$exposure_ids[1] ~ se * bxx, TRUE ~ se)) %>% 
+            dplyr::mutate(se = dplyr::case_when(id == self$exposure_ids[1] ~ se * bxx, TRUE ~ se)) %>%
             as.data.frame()
 
         if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
@@ -899,7 +900,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
 
         byy <- scale$agreement[1]
         out <- dat
-        out <- out %>% 
+        out <- out %>%
             dplyr::mutate(original_beta = beta.outcome) %>%
             dplyr::mutate(original_se = se.outcome) %>%
             dplyr::mutate(beta.outcome = dplyr::case_when(id.outcome == self$outcome_ids[1] ~ beta.outcome * byy, TRUE ~ beta.outcome)) %>%
@@ -912,7 +913,7 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
         self$instrument_regions <- ore
         self$instrument_region_zscores <- oz
 
-        self$standardised_outcome <- out 
+        self$standardised_outcome <- out
       }
     }
 
@@ -939,10 +940,10 @@ MultiAncestrySummarySet <- R6::R6Class("MultiAncestrySummarySet", list(
     {
       m <- subset(instrument, id == i & p < alpha)
       other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
-      
+
       if(winnerscurse==TRUE){
-          wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid))) 
-          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = alpha, conf_level=0.95) %>% 
+          wcm <- m %>% dplyr::select(rsid, beta, se) %>% dplyr::mutate(rsid = as.numeric(gsub("rs","", .$rsid)))
+          wcl <- winnerscurse::cl_interval(summary_data=wcm, alpha = alpha, conf_level=0.95) %>%
                                   dplyr::mutate(rsid = sub("^", "rs",  .$rsid)) %>%
                                   dplyr::mutate(se.cl3 = (.$upper - .$lower) / 3.92) %>% dplyr::arrange(rsid)
           o <- lapply(other_ids, function(j)

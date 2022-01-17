@@ -1,5 +1,5 @@
 ---
-title: "Guide to using TAMR"
+title: "Guide to using CAMERA"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{development}
@@ -20,22 +20,22 @@ The following analyses should run within a couple of minutes, depending on inter
 
 ## Data setup
 
-To install TAMR:
+To install CAMERA:
 
 ```r
 install.packages("devtools")
-devtools::install_github("universe77/TAMR")
+devtools::install_github("universe77/CAMERA")
 ```
 
-Open R6 class environment to run TAMR. Plink (ver.1.90) and LD reference data are also required to identify instruments that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
+Open R6 class environment to run CAMERA. Plink (ver.1.90) and LD reference data are also required to identify instruments that can be used for both populations: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz 
 
 
 ```{r setup}
-library(TAMR)
+library(CAMERA)
 
 # Need to specify path to plink and LD reference data here.
 # The following exposures and the outcomes will be used: Exposures: BMI (EUR-EAS); Outcomes: CHD (EUR-EAS)
-x <- MultiAncestrySummarySet$new(
+x <- CAMERA$new(
   		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
   		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
   		pops = c("EUR", "EAS"),
@@ -51,7 +51,7 @@ Make sure that the exposures/outcomes are matched across the ancestries. Populat
 traits <- TwoSampleMR::available_outcomes()
 ```
 
-## Running TAMR
+## Running CAMERA
 
 We can now perform the analysis, which will do the following:
 1. Extract instruments for the exposures
@@ -65,7 +65,7 @@ We can now perform the analysis, which will do the following:
 
 ## Step by step analysis 
 
-See the `?TAMR` for options on the parameters for this analysis. 
+See the `?CAMERA` for options on the parameters for this analysis. 
 
 
 ### Step 1. Extract instruments for the exposures from each pouplation
