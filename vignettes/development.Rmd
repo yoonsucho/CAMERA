@@ -13,8 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   cache = TRUE
 )
-libary(devtools)
-load_all()
+devtools::load_all()
 ```
 
 # Background
