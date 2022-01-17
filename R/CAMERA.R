@@ -868,6 +868,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
         stopifnot(!is.null(self$instrument_maxz))
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
         bxx <- scale$agreement[1]
+        if(!is.null(self[[paste0("standardised_instrument_", dat$method[[1]])]]))
+        {
+          dat <- self[[paste0("standardised_instrument_", dat$method[[1]])]]
+        }
         exp <- dat %>%
             dplyr::mutate(original_beta = beta) %>%
             dplyr::mutate(original_se = se) %>%
