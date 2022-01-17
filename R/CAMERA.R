@@ -107,12 +107,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
             )
 
             if(any(is.na(t))){
-               message("Unit information is missing: Run x$standardise_units()")
+               message("Unit information is missing: See vignettes")
                print(t)
               }
 
             if(!any(is.na(t)) & t$unit_ref!=t$unit_rep){
-                message("Units for the beta are different across the populations: See vignettes")
+                message("Units for the beta are different across the populations: Run x$standardise_data()")
                 print(t)
               }
             return(res)
