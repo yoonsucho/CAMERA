@@ -755,15 +755,17 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' Evaluate heterogeneity of identified instrument-trait associations across populations, where the instruments were identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
 #' @param instrument Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param alpha insert
- instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni")
+ instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni", method="ivw")
   {
     if(alpha=="bonferroni")
     {
       alpha <- 0.05/nrow(instrument)
     }
 
-    if(!any(names(instrument) %in% c("beta.outcome")))
+    if(method=="ivw")
     {
+     if(!any(names(instrument) %in% c("beta.outcome")))
+     {
       o <- lapply(self$exposure_ids, function(i)
       {
         m <- subset(instrument, id == i & p < alpha)
@@ -774,14 +776,14 @@ CAMERA <- R6::R6Class("CAMERA", list(
               n <- subset(instrument, id == j & rsid %in% m$rsid)
               dat <-dplyr:: inner_join(m, n, by="rsid") %>%
                     dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
-              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
-                      {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
+              res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+                       {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })})
-    }
+     }
 
-    if(any(names(instrument) %in% c("beta.outcome")))
-    {
+     if(any(names(instrument) %in% c("beta.outcome")))
+     {
       o <- lapply(self$outcome_ids, function(i)
       {
         m <- subset(instrument, id.outcome == i & pval.outcome < alpha)
@@ -792,11 +794,52 @@ CAMERA <- R6::R6Class("CAMERA", list(
               n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
               dat <-dplyr:: inner_join(m, n, by="SNP") %>%
                     dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
-              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
+              res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
                       {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })})
+     }
     }
+
+   if(method=="simple_mode")
+   {
+     if(!any(names(instrument) %in% c("beta.outcome")))
+     {
+       o <- lapply(self$exposure_ids, function(i)
+       {
+         m <- subset(instrument, id == i & p < alpha)
+         other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+
+         o <- lapply(other_ids, function(j)
+         {
+           n <- subset(instrument, id == j & rsid %in% m$rsid)
+           dat <-dplyr:: inner_join(m, n, by="rsid") %>%
+             dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
+           res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+             {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval)}
+           return(res)
+         })})
+     }
+
+     if(any(names(instrument) %in% c("beta.outcome")))
+     {
+       o <- lapply(self$outcome_ids, function(i)
+       {
+         m <- subset(instrument, id.outcome == i & pval.outcome < alpha)
+         other_ids <- self$outcome_ids[!self$outcome_ids %in% i]
+
+         o <- lapply(other_ids, function(j)
+         {
+           n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
+           dat <-dplyr:: inner_join(m, n, by="SNP") %>%
+             dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
+           res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+             {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval)}
+           return(res)
+         })})
+     }
+
+   }
     print(o %>% dplyr::bind_rows())
   },
 
@@ -866,7 +909,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
      if(!any(names(dat) %in% c("beta.outcome")))
       {
         stopifnot(!is.null(self$instrument_maxz))
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method="simple_mode")))
         bxx <- scale$agreement[1]
         if(!is.null(self[[paste0("standardised_instrument_", dat$method[[1]])]]))
         {
@@ -900,7 +943,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
         suppressMessages(self$extract_instruments(exposure_ids=self$exposure_ids))
         suppressMessages(self$extract_instrument_regions(instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids))
         suppressMessages(self$scan_regional_instruments(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions))
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz)))
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method="simple_mode")))
 
         byy <- scale$agreement[1]
         out <- dat
