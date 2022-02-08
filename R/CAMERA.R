@@ -38,6 +38,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
   instrument_outcome = NULL,
   harmonised_dat_sem = NULL,
   sem_result = NULL,
+  pleiotropic_snps = NULL,
 
 # for convenience can migrate the results from a previous CAMERA into this one
 #' @description
@@ -755,6 +756,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' Evaluate heterogeneity of identified instrument-trait associations across populations, where the instruments were identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
 #' @param instrument Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param alpha insert
+#' @param method insert
  instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni", method="ivw")
   {
     if(alpha=="bonferroni")
@@ -881,7 +883,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
        if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
       }
 
-    if(any(names(dat) %in% c("beta.outcome")))
+     if(any(names(dat) %in% c("beta.outcome")))
       {
         out <- dat
         d <- out %>%
@@ -889,6 +891,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
         if(!any(d$units %in% c("log odds"))){
           out <- out %>%
               dplyr::group_by(id.outcome) %>%
+              dplyr::mutate(units.outcome = dplyr::na_if(units.outcome, "NA")) %>%
               tidyr::replace_na(list(units.outcome = "temp")) %>%
               dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
               dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))
@@ -1134,6 +1137,61 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
       invisible(self$sem_result <- out %>% dplyr::bind_rows())
       print(self$sem_result)
+  },
+
+
+# Generate harmonised dataset
+# Perform basic SEM analysis of the joint estimates in multiple ancestries
+#' @description
+#' insert
+#' @param harmonised_dat insert
+  test_pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
+    stopifnot(!is.null(harmonised_dat))
+    sig <- harmonised_dat[harmonised_dat$p1<5*10^-8,]
+
+    d1 <- RadialMR::format_radial(BXG=sig$x1, BYG=sig$y1, seBXG=sig$xse1, seBYG=sig$yse1, RSID=sig$SNP)
+    invisible(capture.output(o1 <- RadialMR::ivw_radial(d1, alpha=1, weights=3)))
+    o1$outliers$residuals <- summary(lm(BetaWj ~ -1 + Wj, o1$data))$residuals
+
+    d2 <- RadialMR::format_radial(BXG=sig$x2, BYG=sig$y2, seBXG=sig$xse2, seBYG=sig$yse2, RSID=sig$SNP)
+    invisible(capture.output(o2 <- RadialMR::ivw_radial(d2, alpha=1, weights=3)))
+    o2$outliers$residuals <- summary(lm(BetaWj ~ -1 + Wj, o2$data))$residuals
+
+    dat <- merge(o1$outliers, o2$outliers, by="SNP") %>%
+      dplyr::mutate(
+            sigx=p.adjust(p.value.x, "fdr") < 0.05,
+            sigy=p.adjust(p.value.y, "fdr") < 0.05,
+            outlier = dplyr::case_when(
+              sigx & sigy ~ "Both",
+              sigx & ! sigy ~ "pop1",
+              ! sigx & sigy ~ "pop2",
+              ! sigx & ! sigy ~ "None"
+            ))
+
+    mdif <- (mean(o2$data$Qj) - mean(o1$data$Qj))
+    se1 <- sd(o1$data$Qj) / sqrt(nrow(o1$data))
+    se2 <- sd(o2$data$Qj) / sqrt(nrow(o2$data))
+    mean_diff <- mdif - sqrt(se^2+se2^2)
+    mean_diff_pval <- 2*pnorm(-abs(0.759532))
+    tibble::tibble(Mean_difference=mean_diff, pval=mean_diff_pval)
+
+    out <- list()
+    out$both <- subset(dat$SNP, dat$outlier=="Both")
+    out$pop1 <- subset(dat$SNP, dat$outlier=="pop1")
+    out$pop2 <- subset(dat$SNP, dat$outlier=="pop2")
+    out$none <- subset(dat$SNP, dat$outlier=="None")
+
+    invisible(self$pleiotropic_snps <- out)
+
+    dat %>%
+      ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +
+      ggplot2::geom_point(ggplot2::aes(colour=outlier)) +
+      ggplot2::geom_smooth(method = "lm", se=FALSE, color="gray", alpha = .2, size = 0.2, formula = y ~ x) +
+      ggplot2::scale_colour_brewer(type="qual") +
+      ggplot2::scale_x_log10() +
+      ggplot2::scale_y_log10() +
+      ggplot2::ylab('Q statistics in pop2') +
+      ggplot2::xlab('Q statistics in pop1')
   }
 
 ))

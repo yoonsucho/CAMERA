@@ -26,5 +26,6 @@ Imports: ieugwasr,
 	    tidyr,
         magrittr,
         genetics.binaRies,
-        parallel
+        parallel,
+        RadialMR
 Config/testthat/edition: 3

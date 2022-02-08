@@ -28,6 +28,7 @@ Using a summary set, identify set of instruments for the traits, and peform SEM 
 \item \href{#method-make_outcome_data}{\code{CAMERA$make_outcome_data()}}
 \item \href{#method-harmonised_dat}{\code{CAMERA$harmonised_dat()}}
 \item \href{#method-perform_basic_sem}{\code{CAMERA$perform_basic_sem()}}
+\item \href{#method-test_pleiotropy}{\code{CAMERA$test_pleiotropy()}}
 \item \href{#method-clone}{\code{CAMERA$clone()}}
 }
 }
@@ -326,7 +327,8 @@ Evaluate heterogeneity of identified instrument-trait associations across popula
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$instrument_heterogeneity(
   instrument = self$instrument_raw,
-  alpha = "bonferroni"
+  alpha = "bonferroni",
+  method = "ivw"
 )}\if{html}{\out{</div>}}
 }
 
@@ -336,6 +338,8 @@ Evaluate heterogeneity of identified instrument-trait associations across popula
 \item{\code{instrument}}{Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
 \item{\code{alpha}}{insert}
+
+\item{\code{method}}{insert}
 }
 \if{html}{\out{</div>}}
 }
@@ -435,6 +439,23 @@ insert
 insert
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$perform_basic_sem(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{harmonised_dat}}{insert}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-test_pleiotropy"></a>}}
+\if{latex}{\out{\hypertarget{method-test_pleiotropy}{}}}
+\subsection{Method \code{test_pleiotropy()}}{
+insert
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{CAMERA$test_pleiotropy(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
