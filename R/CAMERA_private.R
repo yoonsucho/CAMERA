@@ -122,3 +122,22 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
    dat$units <- "SD"
  }
 })
+
+CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, b_out_se, b_exp, b_exp_se)
+{
+  expected_b_out <- b_exp * slope
+  diff <- b_out - expected_b_out
+
+  # bootstrap to get diff_se
+  boots <- tibble(
+    B_EXP = rnorm(nboot, mean=b_exp, sd=b_exp_se),
+    B_OUT = rnorm(nboot, mean=b_out, sd=b_out_se),
+    SLOPE = rnorm(nboot, mean=slope, sd=slope_se),
+    DIFF = B_OUT - B_EXP * SLOPE
+  )
+  diff_se <- sd(boots$DIFF)
+  return(list(
+    diff = diff,
+    diff_se = diff_se
+  ))
+})

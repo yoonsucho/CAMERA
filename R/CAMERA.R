@@ -1171,8 +1171,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
     mdif <- (mean(o2$data$Qj) - mean(o1$data$Qj))
     se1 <- sd(o1$data$Qj) / sqrt(nrow(o1$data))
     se2 <- sd(o2$data$Qj) / sqrt(nrow(o2$data))
-    mean_diff <- mdif - sqrt(se^2+se2^2)
-    mean_diff_pval <- 2*pnorm(-abs(0.759532))
+    mean_diff <- mdif / sqrt(se1^2+se2^2)
+    mean_diff_pval <- 2*pnorm(-abs(mean_diff))
     tibble::tibble(Mean_difference=mean_diff, pval=mean_diff_pval)
 
     out <- list()
@@ -1186,7 +1186,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
     dat %>%
       ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +
       ggplot2::geom_point(ggplot2::aes(colour=outlier)) +
-      ggplot2::geom_smooth(method = "lm", se=FALSE, color="gray", alpha = .2, size = 0.2, formula = y ~ x) +
+      #ggplot2::geom_smooth(method = "lm", se=FALSE, color="gray", alpha = .2, size = 0.2, formula = y ~ x) +
       ggplot2::scale_colour_brewer(type="qual") +
       ggplot2::scale_x_log10() +
       ggplot2::scale_y_log10() +
