@@ -859,52 +859,55 @@ CAMERA <- R6::R6Class("CAMERA", list(
        exp <- dat
        d <- exp %>%
               dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
-       if(!any(d$units %in% c("log odds"))){
+     
+       if(any(is.na(exp$eaf))){exp <- private$allele_frequency(dat = exp)}
+     
+       if(!any(d$units %in% c("log odds"))) {
            exp <- exp %>%
                        dplyr::group_by(id) %>%
                        tidyr::replace_na(list(units = "temp")) %>%
                        dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
-                       dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))
-       }
-       if(any(!is.na(exp$estimated_sd)))
-       {
-         stopifnot(!any(is.na(exp$estimated_sd)))
-         exp$beta <- exp$beta / exp$estimated_sd
-         exp$se <- exp$se / exp$estimated_sd
-         exp$units <- "SD"
-       }
+                       dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))}
 
-       exp <- exp %>% as.data.frame()
+       if(!any(is.na(exp$estimated_sd))) {
+        stopifnot(!any(is.na(exp$estimated_sd)))
+        exp$beta <- exp$beta / exp$estimated_sd
+        exp$se <- exp$se / exp$estimated_sd
+        exp$units <- "SD"
 
-       if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
-       if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
-       if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
-       if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
-       if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
-      }
+        exp <- exp %>% as.data.frame()
+
+        if(any(exp$method[[1]] %in% c("raw"))){self$standardised_instrument_raw <- exp}
+        if(any(exp$method[[1]] %in% c("maxz"))){self$standardised_instrument_maxz <- exp}
+        if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
+        if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
+        if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}}
+     }
 
      if(any(names(dat) %in% c("beta.outcome")))
       {
         out <- dat
         d <- out %>%
              dplyr::group_by(id.outcome) %>% dplyr::summarise(units = units.outcome[1])
+
+        if(any(is.na(out$eaf.outcome))){out <- private$allele_frequency(dat = out)}      
+
         if(!any(d$units %in% c("log odds"))){
           out <- out %>%
               dplyr::group_by(id.outcome) %>%
               dplyr::mutate(units.outcome = dplyr::na_if(units.outcome, "NA")) %>%
               tidyr::replace_na(list(units.outcome = "temp")) %>%
               dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
-              dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))
-          }
-        if(any(!is.na(out$estimated_sd)))
-          {
-            stopifnot(!any(is.na(out$estimated_sd)))
-            out$beta.outcome <- out$beta.outcome / out$estimated_sd
-            out$se.outcome <- out$se.outcome / out$estimated_sd
-            out$units.outcome <- "SD"
-          }
-        self$standardised_outcome <- out %>% as.data.frame()
-      }
+              dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))}
+
+        if(any(is.na(out$estimated_sd))){ 
+          stopifnot(!any(is.na(out$estimated_sd)))
+          out$beta.outcome <- out$beta.outcome / out$estimated_sd
+          out$se.outcome <- out$se.outcome / out$estimated_sd
+          out$units.outcome <- "SD"
+        }
+        
+        self$standardised_outcome <- out %>% as.data.frame()}
     }
 
     if(standardise_scale==TRUE)
@@ -935,6 +938,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
     if(any(names(dat) %in% c("beta.outcome")))
       {
         stopifnot(!is.null(self$instrument_outcome))
+
+        if(!is.null(self$standardised_outcome))
+        {
+          dat <- self$standardised_outcome
+        }
 
         oexp <- self$exposure_ids
         oraw <- self$instrument_raw

@@ -123,6 +123,67 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
  }
 })
 
+
+CAMERA$set("private", "allele_frequency", function (dat=dat)
+{ 
+ if(!any(names(dat) %in% c("beta.outcome")))
+ {
+    dat <- dat %>% 
+               dplyr::mutate(pops = factor(ifelse(id == self$exposure_ids[[1]], self$pops[[1]], self$pops[[2]])))
+    index <- which(is.na(dat$eaf2))
+    id <- unique(dat$id[index])
+    pop <- unique(dat$pops[index])
+
+    if(length(id)==1) {
+      dat <- dat %>% 
+                dplyr::group_by(id) %>%
+                dplyr::mutate(eaf = replace(eaf, which(is.na(eaf)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]])) %>%
+                as.data.frame()} 
+
+    if(length(id)>1) {
+      af <- list()
+      snp <- unique(dat$rsid[index])
+      for (i in pop){
+        af[[i]] <- dat %>% 
+        subset(., pops==i) %>% 
+                           dplyr::mutate(eaf = replace(eaf, which(is.na(eaf)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", i)]])) %>%
+                           as.data.frame()}
+
+      dat <- af %>% bind_rows()}
+  }
+
+ if(any(names(dat) %in% c("beta.outcome")))
+ {
+    dat <- dat %>% 
+      dplyr::mutate(pops = factor(ifelse(id.outcome == self$outcome_ids[[1]], self$pops[[1]], self$pops[[2]])))
+
+    index <- which(is.na(dat$eaf.outcome))
+    id <- unique(dat$id.outcome[index])
+    pop <- unique(dat$pops[index])
+
+    if(length(id)==1) {
+        dat <- dat %>% 
+        dplyr::mutate(eaf.outcome = replace(eaf.outcome, which(is.na(eaf.outcome)), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", pop)]])) %>%
+        as.data.frame()} 
+
+    if(length(id)>1) {
+      af <- list()
+      snp <- unique(dat$SNP[index])
+
+      for (i in pop){
+        af[[i]] <- dat %>% 
+                      subset(., pops==i)  %>% 
+                      dplyr::mutate(eaf.outcome= replace(eaf.outcome, which(is.na(eaf.outcome)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", i)]])) %>%
+                      as.data.frame()
+
+        dat <- af %>% bind_rows()}
+     }
+  }
+  return(dat)
+})
+
+
+
 CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, b_out_se, b_exp, b_exp_se)
 {
   expected_b_out <- b_exp * slope
