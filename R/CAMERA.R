@@ -865,7 +865,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
        if(!any(d$units %in% c("log odds"))) {
            exp <- exp %>%
                        dplyr::group_by(id) %>%
-                       tidyr::replace_na(list(units = "temp")) %>%
+                       dplyr::mutate(units = dplyr::na_if(units, "NA")) %>%
+                       dplyr::mutate(units = replace(units, is.na(units), "temp")) %>%
                        dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta, se, samplesize, eaf), na.rm=TRUE)) %>%
                        dplyr::mutate(estimated_sd = replace(estimated_sd, units=="SD", 1))}
 
@@ -896,7 +897,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
           out <- out %>%
               dplyr::group_by(id.outcome) %>%
               dplyr::mutate(units.outcome = dplyr::na_if(units.outcome, "NA")) %>%
-              tidyr::replace_na(list(units.outcome = "temp")) %>%
+              dplyr::mutate(units.outcome = replace(units.outcome, is.na(units.outcome), "temp")) %>%
               dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
               dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))}
 
