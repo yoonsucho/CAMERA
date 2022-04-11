@@ -39,6 +39,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
   harmonised_dat_sem = NULL,
   sem_result = NULL,
   pleiotropic_snps = NULL,
+  instrument_pleiotropy_summary = NULL,
 
 # for convenience can migrate the results from a previous CAMERA into this one
 #' @description
@@ -1154,8 +1155,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @description
 #' insert
 #' @param harmonised_dat insert
-  test_pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
+  test_pleiotropy = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result){
     stopifnot(!is.null(harmonised_dat))
+    stopifnot(!is.null(self$sem_result))
+
     sig <- harmonised_dat[harmonised_dat$p1<5*10^-8,]
 
     d1 <- RadialMR::format_radial(BXG=sig$x1, BYG=sig$y1, seBXG=sig$xse1, seBYG=sig$yse1, RSID=sig$SNP)
@@ -1167,22 +1170,16 @@ CAMERA <- R6::R6Class("CAMERA", list(
     o2$outliers$residuals <- summary(lm(BetaWj ~ -1 + Wj, o2$data))$residuals
 
     dat <- merge(o1$outliers, o2$outliers, by="SNP") %>%
-      dplyr::mutate(
-            sigx=p.adjust(p.value.x, "fdr") < 0.05,
-            sigy=p.adjust(p.value.y, "fdr") < 0.05,
-            outlier = dplyr::case_when(
-              sigx & sigy ~ "Both",
-              sigx & ! sigy ~ "pop1",
-              ! sigx & sigy ~ "pop2",
-              ! sigx & ! sigy ~ "None"
-            ))
-
-    mdif <- (mean(o2$data$Qj) - mean(o1$data$Qj))
-    se1 <- sd(o1$data$Qj) / sqrt(nrow(o1$data))
-    se2 <- sd(o2$data$Qj) / sqrt(nrow(o2$data))
-    mean_diff <- mdif / sqrt(se1^2+se2^2)
-    mean_diff_pval <- 2*pnorm(-abs(mean_diff))
-    tibble::tibble(Mean_difference=mean_diff, pval=mean_diff_pval)
+           dplyr::mutate(
+                          sigx=p.adjust(p.value.x, "fdr") < 0.05,
+                          sigy=p.adjust(p.value.y, "fdr") < 0.05,
+                          outlier = dplyr::case_when(
+                            sigx & sigy ~ "Both",
+                            sigx & ! sigy ~ "pop1",
+                            ! sigx & sigy ~ "pop2",
+                            ! sigx & ! sigy ~ "None")) %>%
+           dplyr::mutate(outp1 = dplyr::if_else(outlier=="pop1", 1, dplyr::if_else(outlier=="both", 1, 0))) %>%
+           dplyr::mutate(outp2 = dplyr::if_else(outlier=="pop2", 1, dplyr::if_else(outlier=="both", 1, 0))) 
 
     out <- list()
     out$both <- subset(dat$SNP, dat$outlier=="Both")
@@ -1191,6 +1188,67 @@ CAMERA <- R6::R6Class("CAMERA", list(
     out$none <- subset(dat$SNP, dat$outlier=="None")
 
     invisible(self$pleiotropic_snps <- out)
+
+
+    if(sem_result$aic[5] <= sem_result$aic[6]){
+      d <- sig %>%
+           dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
+                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
+    }          
+
+    if(sem_result$aic[5] > sem_result$aic[6]){
+      d <- sig %>%
+            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
+                         ivw1=sem_result$bivhat[6], ivw.se1=sem_result$se[6], ivw2=sem_result$bivhat[7], ivw.se2=sem_result$se[7])
+    } 
+
+      pop1 <- list()
+      pop2 <- list()
+      for(i in 1:nrow(d))
+      {
+       pop1[[i]] <- private$bootstrap(d$wald1[i], d$wald.se1[i], d$ivw1[i], d$ivw.se1[i], nboot=1000)
+       pop2[[i]] <- private$bootstrap(d$wald2[i], d$wald.se2[i], d$ivw2[i], d$ivw.se2[i], nboot=1000)
+      }
+      pop1 <- do.call("rbind", pop1) %>% as.data.frame %>% dplyr::select(pleio.p1=pleio, sd.p1=sd) 
+      pop2 <- do.call("rbind", pop2) %>% as.data.frame %>% dplyr::select(pleio.p2=pleio, sd.p2=sd)
+      d <- cbind(d, pop1, pop2) %>%
+            merge(., dat[,c(1, 10:12)], by = "SNP")
+      p1 <- d %>% dplyr::select("SNP", x="x1", xse="xse1", p="p1", y="y1", yse="yse1", wald="wald1", wald.se1="wald.se1", pleio="pleio.p1", sd="sd.p1", out="outp1") %>%
+                  dplyr::mutate(id=self$exposure_ids[1])
+      p2 <- d %>% dplyr::select("SNP", x="x2", xse="xse2", p="p2", y="y2", yse="yse2", wald="wald2", wald.se1="wald.se2", pleio="pleio.p2", sd="sd.p2", out="outp2") %>%
+                  dplyr::mutate(id=self$exposure_ids[2]) 
+
+      mer <- rbind(p1, p2)
+
+      o <- lapply(self$exposure_ids, function(i)
+         {
+           m <- subset(mer, id == i & out==1)
+           other_ids <- self$exposure_ids[!self$exposure_ids %in% i]
+           o <- lapply(other_ids, function(j)
+                 {
+                  n <- subset(mer, id == j & SNP %in% m$SNP) %>% dplyr::arrange(SNP)
+                  o <- n %>%
+                    {private$prop_overlap(m$pleio, .$pleio, sqrt(m$sd), sqrt(.$sd), alpha=0.05)}
+                  o$res <- o$res %>%
+                    dplyr::mutate(discovery=i, replication=j) %>%
+                    dplyr::select(discovery, replication, dplyr::everything())
+                  o$variants <- o$variants %>%
+                    dplyr::mutate(
+                      discovery=i,
+                      replication=j,
+                      rsid=n$rsid,
+                      p=n$p,
+                      distinct=sig > 0.8 & p > 0.1
+                    ) %>%
+                    dplyr::select(discovery, replication, dplyr::everything())
+                  return(o)})
+
+            overall <- lapply(o, function(x) { x$res }) %>% dplyr::bind_rows()
+            pervariant <- lapply(o, function(x) { x$variants }) %>% dplyr::bind_rows()
+            return(list(overall=overall, pervariant=pervariant))
+           })
+
+      self$instrument_pleiotropy_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
 
     dat %>%
       ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +

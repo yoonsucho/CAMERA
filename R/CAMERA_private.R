@@ -202,3 +202,11 @@ CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, 
     diff_se = diff_se
   ))
 })
+
+
+CAMERA$set("private", "bootstrap", function(wr, wr.se, ivw, ivw.se, nboot=1000) 
+{
+  res <- rnorm(nboot, wr, wr.se) - rnorm(nboot, ivw, ivw.se)
+  pe <- wr - ivw
+  return(c(pleio=pe, sd=sd(res)))
+})
