@@ -137,19 +137,17 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
     if(length(id)==1) {
       dat <- dat %>% 
                 dplyr::group_by(id) %>%
-                dplyr::mutate(eaf = replace(eaf, which(is.na(eaf)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]])) %>%
+                dplyr::mutate(eaf = ifelse(is.na(eaf), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]], eaf)) %>%
                 as.data.frame()} 
 
     if(length(id)>1) {
       af <- list()
-      snp <- unique(dat$rsid[index])
       for (i in pop){
         af[[i]] <- dat %>% 
         subset(., pops==i) %>% 
-                           dplyr::mutate(eaf = replace(eaf, which(is.na(eaf)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", i)]])) %>%
+                           dplyr::mutate(eaf = ifelse(is.na(eaf), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]], eaf)) %>%
                            as.data.frame()}
-
-      dat <- af %>% bind_rows()}
+      dat <- af %>% dplyr::bind_rows()}
   }
 
  if(any(names(dat) %in% c("beta.outcome")))
@@ -163,20 +161,17 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
 
     if(length(id)==1) {
         dat <- dat %>% 
-        dplyr::mutate(eaf.outcome = replace(eaf.outcome, which(is.na(eaf.outcome)), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", pop)]])) %>%
-        as.data.frame()} 
+               dplyr::mutate(eaf.outcome = ifelse(is.na(eaf.outcome), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", pop)]], eaf.outcome)) %>%
+               as.data.frame()} 
 
     if(length(id)>1) {
       af <- list()
-      snp <- unique(dat$SNP[index])
-
       for (i in pop){
         af[[i]] <- dat %>% 
                       subset(., pops==i)  %>% 
-                      dplyr::mutate(eaf.outcome= replace(eaf.outcome, which(is.na(eaf.outcome)), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", i)]])) %>%
-                      as.data.frame()
-
-        dat <- af %>% bind_rows()}
+                      dplyr::mutate(eaf.outcome = ifelse(is.na(eaf.outcome), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", i)]], eaf.outcome)) %>%
+                      as.data.frame()}
+      dat <- af %>% dplyr::bind_rows()
      }
   }
   return(dat)

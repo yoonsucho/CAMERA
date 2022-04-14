@@ -1150,14 +1150,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-# Generate harmonised dataset
-# Perform basic SEM analysis of the joint estimates in multiple ancestries
-#' @description
-#' insert
-#' @param harmonised_dat insert
-  pleiotropy_specificity = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result){
+#' @description Return a list of outlying SNPs in each population 
+#' @param harmonised_dat harmonised dataset generated using \code{x$harmonised_dat()}
+  pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
     stopifnot(!is.null(harmonised_dat))
-    stopifnot(!is.null(self$sem_result))
 
     sig <- harmonised_dat[harmonised_dat$p1<5*10^-8,]
 
@@ -1189,14 +1185,34 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
     invisible(self$pleiotropic_snps <- out)
 
+    dat %>%
+      ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +
+      ggplot2::geom_point(ggplot2::aes(colour=outlier)) +
+      #ggplot2::geom_smooth(method = "lm", se=FALSE, color="gray", alpha = .2, size = 0.2, formula = y ~ x) +
+      ggplot2::scale_colour_brewer(type="qual") +
+      ggplot2::scale_x_log10() +
+      ggplot2::scale_y_log10() +
+      ggplot2::ylab('Q statistics in pop2') +
+      ggplot2::xlab('Q statistics in pop1')
+  },
 
-    if(sem_result$aic[5] - sem_result$aic[6] <=-2){
+
+#' @description Estimate population specificity of pleiotric SNPs
+#' @param harmonised_dat harmonised dataset generated using \code{x$harmonised_dat()}
+#' @param sem_result MR-SEM result obtained by \code{x$perform_basic_sem()}
+ pleiotropy_specificity = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result){
+  stopifnot(!is.null(harmonised_dat))
+  stopifnot(!is.null(sem_result))
+
+  sig <- harmonised_dat[harmonised_dat$p1<5*10^-8,]
+
+  if(sem_result$aic[5] - sem_result$aic[6] <=-2){
       d <- sig %>%
            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
     }          
 
-    if(sem_result$aic[5] - sem_result$aic[6] > 2){
+    if(sem_result$aic[5] - sem_result$aic[6] > -2){
       d <- sig %>%
             dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[6], ivw.se1=sem_result$se[6], ivw2=sem_result$bivhat[7], ivw.se2=sem_result$se[7])
@@ -1250,16 +1266,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
       self$instrument_pleiotropy_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
       print(self$instrument_pleiotropy_summary)
-
-    dat %>%
-      ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +
-      ggplot2::geom_point(ggplot2::aes(colour=outlier)) +
-      #ggplot2::geom_smooth(method = "lm", se=FALSE, color="gray", alpha = .2, size = 0.2, formula = y ~ x) +
-      ggplot2::scale_colour_brewer(type="qual") +
-      ggplot2::scale_x_log10() +
-      ggplot2::scale_y_log10() +
-      ggplot2::ylab('Q statistics in pop2') +
-      ggplot2::xlab('Q statistics in pop1')
   }
 
 ))
