@@ -779,7 +779,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
               n <- subset(instrument, id == j & rsid %in% m$rsid)
               dat <-dplyr:: inner_join(m, n, by="rsid") %>%
                     dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
-              res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
                        {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })})
@@ -797,7 +797,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
               n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
               dat <-dplyr:: inner_join(m, n, by="SNP") %>%
                     dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
-              res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+              res <- suppressMessages(TwoSampleMR::mr_ivw(dat$x, dat$y, dat$xse, dat$yse)) %>%
                       {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval, Q=.$Q, Q_pval=.$Q_pval, I2=((.$Q - length(dat$SNP))/.$Q))}
               return(res)
         })})
@@ -1155,7 +1155,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @description
 #' insert
 #' @param harmonised_dat insert
-  test_pleiotropy = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result){
+  pleiotropy_specificity = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result){
     stopifnot(!is.null(harmonised_dat))
     stopifnot(!is.null(self$sem_result))
 
@@ -1190,13 +1190,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
     invisible(self$pleiotropic_snps <- out)
 
 
-    if(sem_result$aic[5] <= sem_result$aic[6]){
+    if(sem_result$aic[5] - sem_result$aic[6] <=-2){
       d <- sig %>%
            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
     }          
 
-    if(sem_result$aic[5] > sem_result$aic[6]){
+    if(sem_result$aic[5] - sem_result$aic[6] > 2){
       d <- sig %>%
             dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[6], ivw.se1=sem_result$se[6], ivw2=sem_result$bivhat[7], ivw.se2=sem_result$se[7])
@@ -1249,6 +1249,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
            })
 
       self$instrument_pleiotropy_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
+      print(self$instrument_pleiotropy_summary)
 
     dat %>%
       ggplot2::ggplot(., ggplot2::aes(x=Q_statistic.x, y=Q_statistic.y)) +
