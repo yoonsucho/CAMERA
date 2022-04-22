@@ -39,6 +39,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
   harmonised_dat_sem = NULL,
   sem_result = NULL,
   pleiotropic_snps = NULL,
+  pleiotropy_dat = NULL,
   instrument_pleiotropy_summary = NULL,
 
 # for convenience can migrate the results from a previous CAMERA into this one
@@ -1212,9 +1213,16 @@ CAMERA <- R6::R6Class("CAMERA", list(
       d <- sig %>%
            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
-    }          
+    }
 
-    if(sem_result$aic[5] - sem_result$aic[6] > -2){
+  if(is.na(sem_result$aic[6])){
+    message("Caution: SE is not properly estimated for model 2. The estimates from model 1 are used.")
+      d <- sig %>%
+           dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
+                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
+    }               
+
+  if(sem_result$aic[5] - sem_result$aic[6] > -2){
       d <- sig %>%
             dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[6], ivw.se1=sem_result$se[6], ivw2=sem_result$bivhat[7], ivw.se2=sem_result$se[7])
@@ -1224,8 +1232,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
   pop2 <- list()
   for(i in 1:nrow(d))
       {
-       pop1[[i]] <- a$.__enclos_env__$private$bootstrap(d$wald1[i], d$wald.se1[i], d$ivw1[i], d$ivw.se1[i], nboot=1000)
-       pop2[[i]] <- a$.__enclos_env__$private$bootstrap(d$wald2[i], d$wald.se2[i], d$ivw2[i], d$ivw.se2[i], nboot=1000)
+       pop1[[i]] <- private$bootstrap(d$wald1[i], d$wald.se1[i], d$ivw1[i], d$ivw.se1[i], nboot=1000)
+       pop2[[i]] <- private$bootstrap(d$wald2[i], d$wald.se2[i], d$ivw2[i], d$ivw.se2[i], nboot=1000)
       }
   pop1 <- do.call("rbind", pop1) %>% as.data.frame %>% dplyr::select(pleio.p1=pleio, sd.p1=sd) 
   pop2 <- do.call("rbind", pop2) %>% as.data.frame %>% dplyr::select(pleio.p2=pleio, sd.p2=sd)
