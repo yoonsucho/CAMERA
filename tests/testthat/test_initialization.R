@@ -1,8 +1,8 @@
-context("MultiAncestrySummarySet")
-library(TAMR)
+context("CAMERA")
+library(CAMERA)
 
 test_that("initialization", {
-  x <- MultiAncestrySummarySet$new(
+  x <- CAMERA$new(
     exposure_ids=c("ieu-a-2", "bbj-a-1"),
     outcome_ids=c("ieu-a-7", "bbj-a-109"),
     pops = c("EUR", "EAS")
@@ -14,7 +14,7 @@ test_that("initialization", {
 })
 
 test_that("extract_instrument", {
-  x <- MultiAncestrySummarySet$new(
+  x <- CAMERA$new(
     exposure_ids=c("ieu-a-2", "bbj-a-1"),
     outcome_ids=c("ieu-a-7", "bbj-a-109"),
     pops = c("EUR", "EAS")

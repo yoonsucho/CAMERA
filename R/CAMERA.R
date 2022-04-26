@@ -45,6 +45,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 # for convenience can migrate the results from a previous CAMERA into this one
 #' @description
 #' Migrate the results from a previous CAMERA
+#' @param x R6 Environment created for CAMERA. Default = x
   import = function(x)
   {
     nom <- names(self)
@@ -225,10 +226,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
 
 #' @description
-#' The function searches for a SNP that is best associated across the poupulations within the identified regions by using \code{x$extract_instrument_regions()}. 
+#' The function searches for a SNP that is best associated across the poupulations within the identified regions by using \code{x$extract_instrument_regions()}.
 #' @param instrument_raw Instruments for the exposures by using \code{x$extract_instrument()}
 #' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
-#' @return List of z scores for the chosen SNPs in x$instrument_region_zscores. Data frame in x$instrument_maxz 
+#' @return List of z scores for the chosen SNPs in x$instrument_region_zscores. Data frame in x$instrument_maxz
   scan_regional_instruments = function(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions)
   {
     # Simple method to choose the best SNP in the region by
@@ -284,10 +285,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @description
 #' The function draws a plot shows how CAMERA selected the instruments for the exposure from the selected genomic regions.
 #' @param region X axis. Number of genomic regions to be shown in the plot. Default is 10.
-#' @param instrument_region_zscores Y axis. Z scores based on the SNP-exposure associations. 
+#' @param instrument_region_zscores Y axis. Z scores based on the SNP-exposure associations.
 #' @param instruments Use this option to draw a separate plot for the selcted instruments.
 #' @param comparison Use this option to compare the selected instruments by different instrument selection methods in one plot.
-#' @return Plot 
+#' @return Plot
   plot_regional_instruments = function(instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw, region=1:min(10, nrow(instruments)), comparison=FALSE)
   {
       a <- instrument_region_zscores[region]
@@ -330,7 +331,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
   # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
   # We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
 #' @description
-#' The fuction obtains an LD matrix for the selected genomic regions. 
+#' The fuction obtains an LD matrix for the selected genomic regions.
 #' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
 #' @param bfiles Location of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
 #' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
@@ -659,8 +660,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-  #' @description 
-  #' Fine-mapping using MsCAVIAR (https://github.com/nlapier2/MsCAVIAR) to extract instruments for the exposure for multiple populations. 
+  #' @description
+  #' Fine-mapping using MsCAVIAR (https://github.com/nlapier2/MsCAVIAR) to extract instruments for the exposure for multiple populations.
   #' @param region Genomic regions identified by using \code{x$extract_instrument_regions()}
   #' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
   #' @param MsCAVIAR Path to executable MsCAVIAR. Default="MsCAVIAR"
@@ -874,9 +875,9 @@ CAMERA <- R6::R6Class("CAMERA", list(
        exp <- dat
        d <- exp %>%
               dplyr::group_by(id) %>% dplyr::summarise(units = units[1])
-     
+
        if(any(is.na(exp$eaf))){exp <- private$allele_frequency(dat = exp)}
-     
+
        if(!any(d$units %in% c("log odds"))) {
            exp <- exp %>%
                        dplyr::group_by(id) %>%
@@ -906,7 +907,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
         d <- out %>%
              dplyr::group_by(id.outcome) %>% dplyr::summarise(units = units.outcome[1])
 
-        if(any(is.na(out$eaf.outcome))){out <- private$allele_frequency(dat = out)}      
+        if(any(is.na(out$eaf.outcome))){out <- private$allele_frequency(dat = out)}
 
         if(!any(d$units %in% c("log odds"))){
           out <- out %>%
@@ -916,13 +917,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
               dplyr::mutate(estimated_sd = mean(TwoSampleMR::estimate_trait_sd(beta.outcome, se.outcome, samplesize.outcome, eaf.outcome), na.rm=TRUE)) %>%
               dplyr::mutate(estimated_sd = replace(estimated_sd, units.outcome=="SD", 1))}
 
-        if(any(is.na(out$estimated_sd))){ 
+        if(any(is.na(out$estimated_sd))){
           stopifnot(!any(is.na(out$estimated_sd)))
           out$beta.outcome <- out$beta.outcome / out$estimated_sd
           out$se.outcome <- out$se.outcome / out$estimated_sd
           out$units.outcome <- "SD"
         }
-        
+
         self$standardised_outcome <- out %>% as.data.frame()}
     }
 
@@ -1004,7 +1005,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param instrument Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @param winnerscurse Use this option to correct winners' curse bias.
-#' @return Table of the results. Summary of the results available in x$instrument_specificity_summary. 
+#' @return Table of the results. Summary of the results available in x$instrument_specificity_summary.
   estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
@@ -1099,10 +1100,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
 
 #' @description
-#' This function harmonises the alleles and effects between the exposure and outcome. 
+#' This function harmonises the alleles and effects between the exposure and outcome.
 #' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
-#' @return Data frame in x$harmonised_dat_sem 
+#' @return Data frame in x$harmonised_dat_sem
   harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
@@ -1122,7 +1123,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @description
 #' Perform basic SEM analysis of the joint estimates in multiple ancestries.
 #' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
-#' @return Table of the SEM results. Summary of the results available in x$sem_result. 
+#' @return Table of the SEM results. Summary of the results available in x$sem_result.
   perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
       d <- harmonised_dat %>%
            dplyr::mutate(r1 = y1/x1) %>%
@@ -1169,10 +1170,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-#' @description 
-#' Return a list of outlying SNPs in each population 
+#' @description
+#' Return a list of outlying SNPs in each population
 #' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
-#' @return List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat. 
+#' @return List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat.
   pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
     stopifnot(!is.null(harmonised_dat))
 
@@ -1196,7 +1197,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
                             ! sigx & sigy ~ "pop2",
                             ! sigx & ! sigy ~ "None")) %>%
            dplyr::mutate(outp1 = dplyr::if_else(outlier=="pop1", 1, dplyr::if_else(outlier=="both", 1, 0))) %>%
-           dplyr::mutate(outp2 = dplyr::if_else(outlier=="pop2", 1, dplyr::if_else(outlier=="both", 1, 0))) 
+           dplyr::mutate(outp2 = dplyr::if_else(outlier=="pop2", 1, dplyr::if_else(outlier=="both", 1, 0)))
 
     invisible(self$pleiotropy_dat <- dat %>% dplyr::select("SNP", "outlier", "outp1", "outp2"))
 
@@ -1220,10 +1221,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-#' @description 
+#' @description
 #' Estimate population specificity of pleiotric SNPs
 #' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
 #' @param sem_result MR-SEM result obtained by \code{x$perform_basic_sem()}
+#' @param pleioropy List of pleiotropic SNPs obtained using \code{x$pleiotropy()}
 #' @return Table of the results. Summary of the results available in x$instrument_pleiotropy_summary.
  pleiotropy_specificity = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result, pleioropy=self$pleiotropy_dat){
   stopifnot(!is.null(harmonised_dat))
@@ -1234,21 +1236,21 @@ CAMERA <- R6::R6Class("CAMERA", list(
   if(sem_result$aic[5] - sem_result$aic[6] <=-2){
       d <- sig %>%
            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
-                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
+                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5])
     }
 
   if(is.na(sem_result$aic[6])){
     message("Caution: SE is not properly estimated for model 2. The estimates from model 1 are used.")
       d <- sig %>%
            dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
-                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5]) 
-    }               
+                         ivw1=sem_result$bivhat[5], ivw.se1=sem_result$se[5], ivw2=sem_result$bivhat[5], ivw.se2=sem_result$se[5])
+    }
 
   if(sem_result$aic[5] - sem_result$aic[6] > -2){
       d <- sig %>%
             dplyr::mutate(wald1=y1/x1, wald.se1= yse1/abs(x1), wald2=y2/x2, wald.se2= yse2/abs(x2),
                          ivw1=sem_result$bivhat[6], ivw.se1=sem_result$se[6], ivw2=sem_result$bivhat[7], ivw.se2=sem_result$se[7])
-    } 
+    }
 
   pop1 <- list()
   pop2 <- list()
@@ -1257,16 +1259,16 @@ CAMERA <- R6::R6Class("CAMERA", list(
        pop1[[i]] <- private$bootstrap(d$wald1[i], d$wald.se1[i], d$ivw1[i], d$ivw.se1[i], nboot=1000)
        pop2[[i]] <- private$bootstrap(d$wald2[i], d$wald.se2[i], d$ivw2[i], d$ivw.se2[i], nboot=1000)
       }
-  pop1 <- do.call("rbind", pop1) %>% as.data.frame %>% dplyr::select(pleio.p1=pleio, sd.p1=sd) 
+  pop1 <- do.call("rbind", pop1) %>% as.data.frame %>% dplyr::select(pleio.p1=pleio, sd.p1=sd)
   pop2 <- do.call("rbind", pop2) %>% as.data.frame %>% dplyr::select(pleio.p2=pleio, sd.p2=sd)
-  
+
   d <- cbind(d, pop1, pop2) %>%
             merge(., pleioropy, by = "SNP")
-  
+
   p1 <- d %>% dplyr::select("SNP", x="x1", xse="xse1", p="p1", y="y1", yse="yse1", wald="wald1", wald.se1="wald.se1", pleio="pleio.p1", sd="sd.p1", out="outp1") %>%
                   dplyr::mutate(id=self$exposure_ids[1])
   p2 <- d %>% dplyr::select("SNP", x="x2", xse="xse2", p="p2", y="y2", yse="yse2", wald="wald2", wald.se1="wald.se2", pleio="pleio.p2", sd="sd.p2", out="outp2") %>%
-                  dplyr::mutate(id=self$exposure_ids[2]) 
+                  dplyr::mutate(id=self$exposure_ids[2])
 
   mer <- rbind(p1, p2)
 

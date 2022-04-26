@@ -28,7 +28,8 @@ Using a summary set, identify set of instruments for the traits, and peform SEM 
 \item \href{#method-make_outcome_data}{\code{CAMERA$make_outcome_data()}}
 \item \href{#method-harmonised_dat}{\code{CAMERA$harmonised_dat()}}
 \item \href{#method-perform_basic_sem}{\code{CAMERA$perform_basic_sem()}}
-\item \href{#method-test_pleiotropy}{\code{CAMERA$test_pleiotropy()}}
+\item \href{#method-pleiotropy}{\code{CAMERA$pleiotropy()}}
+\item \href{#method-pleiotropy_specificity}{\code{CAMERA$pleiotropy_specificity()}}
 \item \href{#method-clone}{\code{CAMERA$clone()}}
 }
 }
@@ -41,6 +42,13 @@ Migrate the results from a previous CAMERA
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$import(x)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{R6 Environment created for CAMERA. Default = x}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
@@ -63,21 +71,21 @@ Create a new dataset and initialise an R interface
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{exposure_ids}}{IDs for the exposures from each population.}
+\item{\code{exposure_ids}}{Exposures IDs obtained from IEU GWAS database (https://gwas.mrcieu.ac.uk/) for each population}
 
-\item{\code{outcome_ids}}{IDs for the outcomes from each population.}
+\item{\code{outcome_ids}}{Outcome IDs obtained from IEU GWAS database (https://gwas.mrcieu.ac.uk/) for each population}
 
-\item{\code{pops}}{Ancestry information; AFR, AMR, EUR, EAS, SAS}
+\item{\code{pops}}{Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)}
 
-\item{\code{bfiles}}{Location of LD reference file (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)}
+\item{\code{bfiles}}{Locations of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)}
 
-\item{\code{plink}}{Location of executable plink (ver.1.90)}
+\item{\code{plink}}{Location of executable plink (ver.1.90 is recommended)}
 
-\item{\code{radius}}{Set a range of the region to look for}
+\item{\code{radius}}{Genomic window size to extract SNPs}
 
-\item{\code{clump_pop}}{insert}
+\item{\code{clump_pop}}{Reference population for clumping}
 
-\item{\code{x}}{insert}
+\item{\code{x}}{Import data where available}
 }
 \if{html}{\out{</div>}}
 }
@@ -86,7 +94,7 @@ Create a new dataset and initialise an R interface
 \if{html}{\out{<a id="method-check_phenotypes"></a>}}
 \if{latex}{\out{\hypertarget{method-check_phenotypes}{}}}
 \subsection{Method \code{check_phenotypes()}}{
-Evaluate instrument associations between populations. The function checks whether 1) the instruments (chosen summary statistics IDs) can be used for the further steps and 2) the units are comparable between populations.
+This function evaluates how competitable genetic associations in population 1 are with those in population 2. The function checks whether 1) the chosen IDs for the exposure or outcome can be used for the further steps and 2) the units for the genetic associations are comparable between populations.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$check_phenotypes(ids = self$exposure_ids)}\if{html}{\out{</div>}}
 }
@@ -98,12 +106,15 @@ Evaluate instrument associations between populations. The function checks whethe
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+Table of the result.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-extract_instruments"></a>}}
 \if{latex}{\out{\hypertarget{method-extract_instruments}{}}}
 \subsection{Method \code{extract_instruments()}}{
-Identifies the instruments for the exposure
+This function searches for GWAS significant SNPs (P < 5E-8) for a specified set of the exposures. This method is equivalant to the instrumnet extraction method for Multivariable MR. Reference here: https://mrcieu.github.io/TwoSampleMR/reference/mv_extract_exposures.html.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$extract_instruments(exposure_ids = self$exposure_ids, ...)}\if{html}{\out{</div>}}
 }
@@ -115,12 +126,15 @@ Identifies the instruments for the exposure
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+Data frame in x$instrument_raw
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-extract_instrument_regions"></a>}}
 \if{latex}{\out{\hypertarget{method-extract_instrument_regions}{}}}
 \subsection{Method \code{extract_instrument_regions()}}{
-Extract a region around each instrument obtained from \code{x$extract_instruments()}.
+This function extract genomic regions around each instrument (e.g. 50kb) obtained from \code{x$extract_instruments()}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$extract_instrument_regions(
   radius = self$radius,
@@ -140,12 +154,15 @@ Extract a region around each instrument obtained from \code{x$extract_instrument
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+Data frame in x$instrument_regions
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-scan_regional_instruments"></a>}}
 \if{latex}{\out{\hypertarget{method-scan_regional_instruments}{}}}
 \subsection{Method \code{scan_regional_instruments()}}{
-insert
+The function searches for a SNP that is best associated across the poupulations within the identified regions by using \code{x$extract_instrument_regions()}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$scan_regional_instruments(
   instrument_raw = self$instrument_raw,
@@ -156,18 +173,21 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument_raw}}{insert}
+\item{\code{instrument_raw}}{Instruments for the exposures by using \code{x$extract_instrument()}}
 
-\item{\code{instrument_regions}}{insert}
+\item{\code{instrument_regions}}{Genomic regions identified by using \code{x$extract_instrument_regions()}}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+List of z scores for the chosen SNPs in x$instrument_region_zscores. Data frame in x$instrument_maxz
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-plot_regional_instruments"></a>}}
 \if{latex}{\out{\hypertarget{method-plot_regional_instruments}{}}}
 \subsection{Method \code{plot_regional_instruments()}}{
-insert
+The function draws a plot shows how CAMERA selected the instruments for the exposure from the selected genomic regions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$plot_regional_instruments(
   instrument_region_zscores = self$instrument_region_zscores,
@@ -180,22 +200,25 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument_region_zscores}}{insert}
+\item{\code{instrument_region_zscores}}{Y axis. Z scores based on the SNP-exposure associations.}
 
-\item{\code{instruments}}{insert}
+\item{\code{instruments}}{Use this option to draw a separate plot for the selcted instruments.}
 
-\item{\code{region}}{insert}
+\item{\code{region}}{X axis. Number of genomic regions to be shown in the plot. Default is 10.}
 
-\item{\code{comparison}}{insert}
+\item{\code{comparison}}{Use this option to compare the selected instruments by different instrument selection methods in one plot.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Plot
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-regional_ld_matrices"></a>}}
 \if{latex}{\out{\hypertarget{method-regional_ld_matrices}{}}}
 \subsection{Method \code{regional_ld_matrices()}}{
-insert
+The fuction obtains an LD matrix for the selected genomic regions.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$regional_ld_matrices(
   instrument_regions = self$instrument_regions,
@@ -208,22 +231,25 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument_regions}}{insert}
+\item{\code{instrument_regions}}{Genomic regions identified by using \code{x$extract_instrument_regions()}}
 
-\item{\code{bfiles}}{insert}
+\item{\code{bfiles}}{Location of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)}
 
-\item{\code{pops}}{insert}
+\item{\code{pops}}{Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)}
 
-\item{\code{plink}}{insert}
+\item{\code{plink}}{Location of executable plink (ver.1.90 is recommended)}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Data frame of LD matrix (x$ld_matrices)
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-replication_evaluation"></a>}}
 \if{latex}{\out{\hypertarget{method-replication_evaluation}{}}}
 \subsection{Method \code{replication_evaluation()}}{
-insert
+The fuction explains what contributes to the replication of gene-trait association between the populations, considering LD structure.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$replication_evaluation(
   instrument = self$instrument_raw,
@@ -234,18 +260,21 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument}}{insert}
+\item{\code{instrument}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{ld}}{insert}
+\item{\code{ld}}{LD matrix obtained by using \code{x$regional_ld_matrices()}}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Table of the regression result
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-susie_finemap_regions"></a>}}
 \if{latex}{\out{\hypertarget{method-susie_finemap_regions}{}}}
 \subsection{Method \code{susie_finemap_regions()}}{
-insert
+Fine-mapping using susieR (https://github.com/stephenslab/susieR) to extract instruments for the exposure for multiple populations. The function identifies credible sets that overlap between the populations and determine the best SNP in a genomic region to be used as instrument.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$susie_finemap_regions(
   dat = self$instrument_regions,
@@ -256,18 +285,21 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dat}}{insert}
+\item{\code{dat}}{Genomic regions identified by using \code{x$extract_instrument_regions()}}
 
-\item{\code{ld}}{insert}
+\item{\code{ld}}{LD matrix obtained by using \code{x$regional_ld_matrices()}}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Result from susieR in x$susie_results. Data frame in x$instrument_susie
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-paintor_finemap_regions"></a>}}
 \if{latex}{\out{\hypertarget{method-paintor_finemap_regions}{}}}
 \subsection{Method \code{paintor_finemap_regions()}}{
-insert
+Fine-mapping using PAINTOR (https://github.com/gkichaev/PAINTOR_V3.0) to extract instruments for the exposure for multiple populations. The function chooses the SNP with highest posterior probability and associations in each exposure.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$paintor_finemap_regions(
   region = self$instrument_regions,
@@ -280,22 +312,25 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{region}}{Output from extract_regional_data}
+\item{\code{region}}{Genomic regions identified by using \code{x$extract_instrument_regions()}}
 
-\item{\code{ld}}{insert}
+\item{\code{ld}}{LD matrix obtained by using \code{x$regional_ld_matrices()}}
 
-\item{\code{PAINTOR}}{Path to PAINTOR executable. Default="PAINTOR"}
+\item{\code{PAINTOR}}{Path to executable PAINTOR. Default="PAINTOR"}
 
-\item{\code{workdir}}{Working directory. Default=tempdir()}
+\item{\code{workdir}}{Working directory to save the output. Default=tempdir()}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Result from PAINTOR in x$paintor_results. Data frame in x$instrument_paintor
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-MsCAVIAR_finemap_regions"></a>}}
 \if{latex}{\out{\hypertarget{method-MsCAVIAR_finemap_regions}{}}}
 \subsection{Method \code{MsCAVIAR_finemap_regions()}}{
-Analyse regional data with MsCAVIAR
+Fine-mapping using MsCAVIAR (https://github.com/nlapier2/MsCAVIAR) to extract instruments for the exposure for multiple populations.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$MsCAVIAR_finemap_regions(
   region = self$instrument_regions,
@@ -308,22 +343,25 @@ Analyse regional data with MsCAVIAR
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{region}}{Output from extract_regional_data}
+\item{\code{region}}{Genomic regions identified by using \code{x$extract_instrument_regions()}}
 
-\item{\code{ld}}{insert}
+\item{\code{ld}}{LD matrix obtained by using \code{x$regional_ld_matrices()}}
 
-\item{\code{MsCAVIAR}}{Path to MsCAVIAR executable. Default="MsCAVIAR"}
+\item{\code{MsCAVIAR}}{Path to executable MsCAVIAR. Default="MsCAVIAR"}
 
-\item{\code{workdir}}{Working directory. Default=tempdir()}
+\item{\code{workdir}}{Working directory to save the output. Default=tempdir()}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Result from MsCAVIAR in x$mscaviar_results. Data frame in x$instrument_mscaviar
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-instrument_heterogeneity"></a>}}
 \if{latex}{\out{\hypertarget{method-instrument_heterogeneity}{}}}
 \subsection{Method \code{instrument_heterogeneity()}}{
-Evaluate heterogeneity of identified instrument-trait associations across populations, where the instruments were identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
+The function evaluates heterogeneity in the association of selected instruments and the exposure/outcome between the populations. Heterogeneity (Q statistics) is calcuated based on an IVW or simple MODE MR estimator. The instruments can be identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$instrument_heterogeneity(
   instrument = self$instrument_raw,
@@ -335,20 +373,23 @@ Evaluate heterogeneity of identified instrument-trait associations across popula
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument}}{Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
+\item{\code{instrument}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{alpha}}{insert}
+\item{\code{alpha}}{Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.}
 
-\item{\code{method}}{insert}
+\item{\code{method}}{IVW or Simple MODE}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Table of the result
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-standardise_data"></a>}}
 \if{latex}{\out{\hypertarget{method-standardise_data}{}}}
 \subsection{Method \code{standardise_data()}}{
-insert
+The function standardise the betas and SEs for the instruments-exposure/outcome associations when unit informaiton is not matched across the populations. In case of large differences in genetic effects observed between the populations (e.g. due to sample size difference), the function scales the betas and SEs.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$standardise_data(
   dat = self$instrument_raw,
@@ -360,20 +401,23 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dat}}{insert}
+\item{\code{dat}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{standardise_unit}}{insert}
+\item{\code{standardise_unit}}{Use this option if unit information is not matched.}
 
-\item{\code{standardise_scale}}{insert}
+\item{\code{standardise_scale}}{Use this option if genetic effects are substantially different due to study power.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Data frame in x$standardised_instrument_raw; x$standardised_instrument_maxz; x$standardised_instrument_susie; x$standardised_instrument_paintor; x$standardised_instrument_mscaviar; x$standardised_outcome
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-estimate_instrument_specificity"></a>}}
 \if{latex}{\out{\hypertarget{method-estimate_instrument_specificity}{}}}
 \subsection{Method \code{estimate_instrument_specificity()}}{
-Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
+The function estimates what fraction of the instuments is expected to be replicated across the populations under the hypothesis that the effect estimates are the same.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$estimate_instrument_specificity(
   instrument,
@@ -385,20 +429,23 @@ Estimate what fraction of the instuments is expected to be replicated under the 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{instrument}}{A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}}
+\item{\code{instrument}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{alpha}}{Significance level. Default is 0.05/number of SNPs (Bonferroni)}
+\item{\code{alpha}}{Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.}
 
-\item{\code{winnerscurse}}{insert}
+\item{\code{winnerscurse}}{Use this option to correct winners' curse bias.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Table of the results. Summary of the results available in x$instrument_specificity_summary.
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-make_outcome_data"></a>}}
 \if{latex}{\out{\hypertarget{method-make_outcome_data}{}}}
 \subsection{Method \code{make_outcome_data()}}{
-insert
+The function extracts summary statistics of given a list of instruments and the outcomes
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$make_outcome_data(exp = self$instrument_raw, p_exp = 0.05/nrow(exp))}\if{html}{\out{</div>}}
 }
@@ -406,18 +453,21 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{exp}}{insert}
+\item{\code{exp}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{p_exp}}{insert}
+\item{\code{p_exp}}{Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Data frame in x$instrument_outcome
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-harmonised_dat"></a>}}
 \if{latex}{\out{\hypertarget{method-harmonised_dat}{}}}
 \subsection{Method \code{harmonised_dat()}}{
-insert
+This function harmonises the alleles and effects between the exposure and outcome.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$harmonised_dat(exp = self$instrument_raw, out = self$instrument_outcome)}\if{html}{\out{</div>}}
 }
@@ -425,18 +475,21 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{exp}}{insert}
+\item{\code{exp}}{Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.}
 
-\item{\code{out}}{insert}
+\item{\code{out}}{Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Data frame in x$harmonised_dat_sem
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-perform_basic_sem"></a>}}
 \if{latex}{\out{\hypertarget{method-perform_basic_sem}{}}}
 \subsection{Method \code{perform_basic_sem()}}{
-insert
+Perform basic SEM analysis of the joint estimates in multiple ancestries.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$perform_basic_sem(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
 }
@@ -444,26 +497,60 @@ insert
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{harmonised_dat}}{insert}
+\item{\code{harmonised_dat}}{Harmonised dataset obtained by using \code{harmonised_dat()}}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Returns}{
+Table of the SEM results. Summary of the results available in x$sem_result.
+}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-test_pleiotropy"></a>}}
-\if{latex}{\out{\hypertarget{method-test_pleiotropy}{}}}
-\subsection{Method \code{test_pleiotropy()}}{
-insert
+\if{html}{\out{<a id="method-pleiotropy"></a>}}
+\if{latex}{\out{\hypertarget{method-pleiotropy}{}}}
+\subsection{Method \code{pleiotropy()}}{
+Return a list of outlying SNPs in each population
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CAMERA$test_pleiotropy(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{harmonised_dat}}{insert}
+\item{\code{harmonised_dat}}{Harmonised dataset obtained by using \code{harmonised_dat()}}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-pleiotropy_specificity"></a>}}
+\if{latex}{\out{\hypertarget{method-pleiotropy_specificity}{}}}
+\subsection{Method \code{pleiotropy_specificity()}}{
+Estimate population specificity of pleiotric SNPs
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy_specificity(
+  harmonised_dat = self$harmonised_dat_sem,
+  sem_result = self$sem_result,
+  pleioropy = self$pleiotropy_dat
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{harmonised_dat}}{Harmonised dataset obtained by using \code{harmonised_dat()}}
+
+\item{\code{sem_result}}{MR-SEM result obtained by \code{x$perform_basic_sem()}}
+
+\item{\code{pleioropy}}{List of pleiotropic SNPs obtained using \code{x$pleiotropy()}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Table of the results. Summary of the results available in x$instrument_pleiotropy_summary.
 }
 }
 \if{html}{\out{<hr>}}
