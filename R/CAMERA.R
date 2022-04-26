@@ -60,14 +60,14 @@ CAMERA <- R6::R6Class("CAMERA", list(
 # Methods
 #' @description
 #' Create a new dataset and initialise an R interface
-#' @param exposure_ids IDs for the exposures from each population.
-#' @param outcome_ids IDs for the outcomes from each population.
-#' @param pops Ancestry information; AFR, AMR, EUR, EAS, SAS
-#' @param bfiles Location of LD reference file (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
-#' @param plink Location of executable plink (ver.1.90)
-#' @param radius Set a range of the region to look for
-#' @param clump_pop insert
-#' @param x insert
+#' @param exposure_ids Exposures IDs obtained from IEU GWAS database (https://gwas.mrcieu.ac.uk/) for each population
+#' @param outcome_ids Outcome IDs obtained from IEU GWAS database (https://gwas.mrcieu.ac.uk/) for each population
+#' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
+#' @param bfiles Locations of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
+#' @param plink Location of executable plink (ver.1.90 is recommended)
+#' @param radius Genomic window size to extract SNPs
+#' @param clump_pop Reference population for clumping
+#' @param x Import data where available
   initialize = function(exposure_ids=NULL, outcome_ids=NULL, pops=NULL, bfiles=NULL, plink=NULL, radius=NULL, clump_pop=NULL, x=NULL)
   {
     if(!is.null(x))
@@ -84,8 +84,9 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 #' @description
-#'  Evaluate instrument associations between populations. The function checks whether 1) the instruments (chosen summary statistics IDs) can be used for the further steps and 2) the units are comparable between populations.
+#'  This function evaluates how competitable genetic associations in population 1 are with those in population 2. The function checks whether 1) the chosen IDs for the exposure or outcome can be used for the further steps and 2) the units for the genetic associations are comparable between populations.
 #' @param ids ID for the exposure or the outcome. Default is x$exposure_ids.
+#' @return Table of the result.
   check_phenotypes = function(ids=self$exposure_ids)
   {
     o <- lapply(ids, function(i) {tryCatch(
@@ -126,13 +127,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 #' @description
-#'  Identifies the instruments for the exposure
+#'  This function searches for GWAS significant SNPs (P < 5E-8) for a specified set of the exposures. This method is equivalant to the instrumnet extraction method for Multivariable MR. Reference here: https://mrcieu.github.io/TwoSampleMR/reference/mv_extract_exposures.html.
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
+#' @return Data frame in x$instrument_raw
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
-    # Use MVMR method to do the initial extraction
-    # It gets the tophits in each exposure
-    # Then randomly chooses one SNP per region to keep using clumping
     suppressMessages(instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...))
     # Add chromosome and position
     suppressMessages(instrument_raw <- TwoSampleMR::add_metadata(instrument_raw, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")))
@@ -162,13 +161,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
   # Here the idea is that pop1 and pop2 might share an instrument, but the tophit for pop1 is not the causal variant
   # Hence, in pop1 it is in LD with the causal variant but not in pop2
-  # So we extract a region around each instrument (e.g. 50kb)
-  # Search for a SNP that is best associated in both pop1 and pop2
 #' @description
-#' Extract a region around each instrument obtained from \code{x$extract_instruments()}.
+#' This function extract genomic regions around each instrument (e.g. 50kb) obtained from \code{x$extract_instruments()}.
 #' @param radius Set a range of the region to search
 #' @param instrument_raw A set of instruments obtained from \code{x$extract_instruments()}
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
+#' @return Data frame in x$instrument_regions
   extract_instrument_regions = function(radius=self$radius, instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids)
   {
     # return a list of lists e.g.
@@ -227,9 +225,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
 
 #' @description
-#' insert
-#' @param instrument_raw insert
-#' @param instrument_regions insert
+#' The function searches for a SNP that is best associated across the poupulations within the identified regions by using \code{x$extract_instrument_regions()}. 
+#' @param instrument_raw Instruments for the exposures by using \code{x$extract_instrument()}
+#' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
+#' @return List of z scores for the chosen SNPs in x$instrument_region_zscores. Data frame in x$instrument_maxz 
   scan_regional_instruments = function(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions)
   {
     # Simple method to choose the best SNP in the region by
@@ -281,12 +280,14 @@ CAMERA <- R6::R6Class("CAMERA", list(
     }) %>% dplyr::bind_rows() %>% dplyr::mutate(method = "maxz")
   },
 
+
 #' @description
-#' insert
-#' @param region insert
-#' @param instrument_region_zscores insert
-#' @param instruments insert
-#' @param comparison insert
+#' The function draws a plot shows how CAMERA selected the instruments for the exposure from the selected genomic regions.
+#' @param region X axis. Number of genomic regions to be shown in the plot. Default is 10.
+#' @param instrument_region_zscores Y axis. Z scores based on the SNP-exposure associations. 
+#' @param instruments Use this option to draw a separate plot for the selcted instruments.
+#' @param comparison Use this option to compare the selected instruments by different instrument selection methods in one plot.
+#' @return Plot 
   plot_regional_instruments = function(instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw, region=1:min(10, nrow(instruments)), comparison=FALSE)
   {
       a <- instrument_region_zscores[region]
@@ -326,15 +327,15 @@ CAMERA <- R6::R6Class("CAMERA", list(
       }
   },
 
-  # to build on extract_instrument_regions we can do finemapping
   # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
   # We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
 #' @description
-#' insert
-#' @param instrument_regions insert
-#' @param bfiles insert
-#' @param pops insert
-#' @param plink insert
+#' The fuction obtains an LD matrix for the selected genomic regions. 
+#' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
+#' @param bfiles Location of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
+#' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
+#' @param plink Location of executable plink (ver.1.90 is recommended)
+#' @return Data frame of LD matrix (x$ld_matrices)
   regional_ld_matrices = function(instrument_regions=self$instrument_regions, bfiles=self$bfiles, pops=self$pops, plink=self$plink)
   {
 
@@ -396,10 +397,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
     invisible(self)
   },
 
+
 #' @description
-#' insert
-#' @param instrument insert
-#' @param ld insert
+#' The fuction explains what contributes to the replication of gene-trait association between the populations, considering LD structure.
+#' @param instrument Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
+#' @return Table of the regression result
   replication_evaluation = function(instrument=self$instrument_raw, ld=self$ld_matrices){
     instrument_pop <- instrument %>% dplyr::group_split(id)
 
@@ -450,13 +453,15 @@ CAMERA <- R6::R6Class("CAMERA", list(
     return(list(res))
   },
 
+
   # for each instrument region + ld matrix we can perform susie finemapping
   # do this independently in each population
   # find credible sets that overlap - to try to determine the best SNP in a region to be used as instrument
 #' @description
-#' insert
-#' @param dat insert
-#' @param ld insert
+#' Fine-mapping using susieR (https://github.com/stephenslab/susieR) to extract instruments for the exposure for multiple populations. The function identifies credible sets that overlap between the populations and determine the best SNP in a genomic region to be used as instrument.
+#' @param dat Genomic regions identified by using \code{x$extract_instrument_regions()}
+#' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
+#' @return Result from susieR in x$susie_results. Data frame in x$instrument_susie
  susie_finemap_regions = function(dat=self$instrument_regions, ld=self$ld_matrices)
   {
    resnps <- names(ld)
@@ -554,14 +559,16 @@ CAMERA <- R6::R6Class("CAMERA", list(
    invisible(self)
   },
 
+
   # PAINTOR allows finemapping jointly across multiple populations
   # returns a posterior probability of inclusion for each SNP
-  # Choose the variant with highest posterior probability and associations in each exposure
-  #' @description insert
-  #' @param region Output from extract_regional_data
-  #' @param ld insert
-  #' @param PAINTOR Path to PAINTOR executable. Default="PAINTOR"
-  #' @param workdir Working directory. Default=tempdir()
+  #' @description
+  #' Fine-mapping using PAINTOR (https://github.com/gkichaev/PAINTOR_V3.0) to extract instruments for the exposure for multiple populations. The function chooses the SNP with highest posterior probability and associations in each exposure.
+  #' @param region Genomic regions identified by using \code{x$extract_instrument_regions()}
+  #' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
+  #' @param PAINTOR Path to executable PAINTOR. Default="PAINTOR"
+  #' @param workdir Working directory to save the output. Default=tempdir()
+  #' @return Result from PAINTOR in x$paintor_results. Data frame in x$instrument_paintor
   paintor_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, PAINTOR="PAINTOR", workdir=tempdir())
   {
     id <- self$exposure_ids
@@ -652,11 +659,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-  #' @description Analyse regional data with MsCAVIAR
-  #' @param region Output from extract_regional_data
-  #' @param ld insert
-  #' @param MsCAVIAR Path to MsCAVIAR executable. Default="MsCAVIAR"
-  #' @param workdir Working directory. Default=tempdir()
+  #' @description 
+  #' Fine-mapping using MsCAVIAR (https://github.com/nlapier2/MsCAVIAR) to extract instruments for the exposure for multiple populations. 
+  #' @param region Genomic regions identified by using \code{x$extract_instrument_regions()}
+  #' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
+  #' @param MsCAVIAR Path to executable MsCAVIAR. Default="MsCAVIAR"
+  #' @param workdir Working directory to save the output. Default=tempdir()
+  #' @return Result from MsCAVIAR in x$mscaviar_results. Data frame in x$instrument_mscaviar
   MsCAVIAR_finemap_regions = function(region=self$instrument_regions, ld=self$ld_matrices, MsCAVIAR="MsCAVIAR", workdir=tempdir())
   {
     id <- self$exposure_ids
@@ -754,11 +763,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
       invisible(self)
   },
 
+
 #' @description
-#' Evaluate heterogeneity of identified instrument-trait associations across populations, where the instruments were identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
-#' @param instrument Intsruments for the exposure that are selected the provided methods (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
-#' @param alpha insert
-#' @param method insert
+#' The function evaluates heterogeneity in the association of selected instruments and the exposure/outcome between the populations. Heterogeneity (Q statistics) is calcuated based on an IVW or simple MODE MR estimator. The instruments can be identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
+#' @param instrument Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
+#' @param method IVW or Simple MODE
+#' @return Table of the result
  instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni", method="ivw")
   {
     if(alpha=="bonferroni")
@@ -847,11 +858,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
     print(o %>% dplyr::bind_rows())
   },
 
+
 #' @description
-#' insert
-#' @param dat insert
-#' @param standardise_unit insert
-#' @param standardise_scale insert
+#' The function standardise the betas and SEs for the instruments-exposure/outcome associations when unit informaiton is not matched across the populations. In case of large differences in genetic effects observed between the populations (e.g. due to sample size difference), the function scales the betas and SEs.
+#' @param dat Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param standardise_unit Use this option if unit information is not matched.
+#' @param standardise_scale Use this option if genetic effects are substantially different due to study power.
+#' @return Data frame in x$standardised_instrument_raw; x$standardised_instrument_maxz; x$standardised_instrument_susie; x$standardised_instrument_paintor; x$standardised_instrument_mscaviar; x$standardised_outcome
   standardise_data = function(dat=self$instrument_raw, standardise_unit=FALSE, standardise_scale=FALSE)
   {
     if(standardise_unit==TRUE)
@@ -987,10 +1000,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
   # - compare these to what is expected by chance under the hypothesis that the effect estimates are the same
   # this will provide some evidence for whether lack of replication is due to (e.g.) GxE
 #' @description
-#' Estimate what fraction of the instuments is expected to be replicated under the hypothesis that the effect estimates are the same
-#' @param instrument A set of instruments obtained from \code{x$extract_instruments()} or \code{scan_regional_instruments()}
-#' @param alpha Significance level. Default is 0.05/number of SNPs (Bonferroni)
-#' @param winnerscurse insert
+#' The function estimates what fraction of the instuments is expected to be replicated across the populations under the hypothesis that the effect estimates are the same.
+#' @param instrument Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
+#' @param winnerscurse Use this option to correct winners' curse bias.
+#' @return Table of the results. Summary of the results available in x$instrument_specificity_summary. 
   estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
@@ -1056,16 +1070,18 @@ CAMERA <- R6::R6Class("CAMERA", list(
     return(self$instrument_specificity_summary)
   },
 
+
   # Once a set of instruments is defined then extract the outcome data
   # Could use
   # - raw results from extract_instruments
   # - maximised associations from extract_instrument_regions
   # - finemapped hits from susie_finemap_regions
   # - finemapped hits from mscaviar_finemap_regions
-  #' @description
-  #' insert
-  #' @param exp insert
-  #' @param p_exp insert
+#' @description
+#' The function extracts summary statistics of given a list of instruments and the outcomes
+#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param p_exp Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
+#' @return Data frame in x$instrument_outcome
   make_outcome_data = function(exp=self$instrument_raw, p_exp=0.05/nrow(exp)){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
@@ -1081,10 +1097,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
       invisible(self)
   },
 
+
 #' @description
-#' insert
-#' @param exp insert
-#' @param out insert
+#' This function harmonises the alleles and effects between the exposure and outcome. 
+#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
+#' @return Data frame in x$harmonised_dat_sem 
   harmonised_dat = function(exp=self$instrument_raw, out=self$instrument_outcome){
       dx <- dplyr::inner_join(
                               subset(exp, id == self$exposure_ids[[1]]),
@@ -1100,11 +1118,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
       self$harmonised_dat_sem <- dat
   },
 
-# Generate harmonised dataset
-# Perform basic SEM analysis of the joint estimates in multiple ancestries
+
 #' @description
-#' insert
-#' @param harmonised_dat insert
+#' Perform basic SEM analysis of the joint estimates in multiple ancestries.
+#' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
+#' @return Table of the SEM results. Summary of the results available in x$sem_result. 
   perform_basic_sem = function(harmonised_dat = self$harmonised_dat_sem) {
       d <- harmonised_dat %>%
            dplyr::mutate(r1 = y1/x1) %>%
@@ -1151,8 +1169,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-#' @description Return a list of outlying SNPs in each population 
-#' @param harmonised_dat harmonised dataset generated using \code{x$harmonised_dat()}
+#' @description 
+#' Return a list of outlying SNPs in each population 
+#' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
+#' @return List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat. 
   pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
     stopifnot(!is.null(harmonised_dat))
 
@@ -1200,9 +1220,11 @@ CAMERA <- R6::R6Class("CAMERA", list(
   },
 
 
-#' @description Estimate population specificity of pleiotric SNPs
-#' @param harmonised_dat harmonised dataset generated using \code{x$harmonised_dat()}
+#' @description 
+#' Estimate population specificity of pleiotric SNPs
+#' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
 #' @param sem_result MR-SEM result obtained by \code{x$perform_basic_sem()}
+#' @return Table of the results. Summary of the results available in x$instrument_pleiotropy_summary.
  pleiotropy_specificity = function(harmonised_dat=self$harmonised_dat_sem, sem_result=self$sem_result, pleioropy=self$pleiotropy_dat){
   stopifnot(!is.null(harmonised_dat))
   stopifnot(!is.null(sem_result))
