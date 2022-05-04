@@ -865,8 +865,9 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param dat Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param standardise_unit Use this option if unit information is not matched.
 #' @param standardise_scale Use this option if genetic effects are substantially different due to study power.
+#' @param scaling_method Choose the methods to obtain scaling units (MR estimates of exposure 1 and exposure 2 or outcome 1 and outcome 2). Default is "simple_mode".
 #' @return Data frame in x$standardised_instrument_raw; x$standardised_instrument_maxz; x$standardised_instrument_susie; x$standardised_instrument_paintor; x$standardised_instrument_mscaviar; x$standardised_outcome
-  standardise_data = function(dat=self$instrument_raw, standardise_unit=FALSE, standardise_scale=FALSE)
+  standardise_data = function(dat=self$instrument_raw, standardise_unit=FALSE, standardise_scale=FALSE, scaling_method="simple_mode")
   {
     if(standardise_unit==TRUE)
     {
@@ -932,7 +933,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
      if(!any(names(dat) %in% c("beta.outcome")))
       {
         stopifnot(!is.null(self$instrument_maxz))
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method="simple_mode")))
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method=scaling_method)))
         bxx <- scale$agreement[1]
         if(!is.null(self[[paste0("standardised_instrument_", dat$method[[1]])]]))
         {
@@ -971,7 +972,9 @@ CAMERA <- R6::R6Class("CAMERA", list(
         suppressMessages(self$extract_instruments(exposure_ids=self$exposure_ids))
         suppressMessages(self$extract_instrument_regions(instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids))
         suppressMessages(self$scan_regional_instruments(instrument_raw=self$instrument_raw, instrument_regions=self$instrument_regions))
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method="simple_mode")))
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method=scaling_method)))
+
+        if(is.na(scale$agreement[1])){stop("Scaling units can't be estimated")}
 
         byy <- scale$agreement[1]
         out <- dat
