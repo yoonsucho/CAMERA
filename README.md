@@ -6,12 +6,12 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of CAMERA is to estimate causal effect using summary statistics
-in multiple ancestries. CAMERA provides: 1) Selecting genetic
-instruments for multiple populations. 2) Estimate causal effect where
-exposure and outcome summary statistics were from different ancestral
-populations. 2) Jointly modelling causal and pleiotropic effects across
-multiple populations.
+The goal of Cross-Ancestry Mendelian Randomisation (CAMERA) is to estimate causal effect using summary statistics
+in multiple ancestries. CAMERA aims to:
+
+1. Select genetic instruments for multiple populations
+2. Jointly estimate causal effects in an MR framework where exposure and outcome summary statistics are generated in different ancestral populations
+3. Use multiple populations to understand pleiotropy
 
 ## Installation
 
