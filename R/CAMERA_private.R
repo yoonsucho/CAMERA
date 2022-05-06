@@ -60,6 +60,21 @@ CAMERA$set("private", "runsem", function(model, data, modname)
                       pval=mod$PE$pvalue[1:2],
                       aic=mod$FIT['aic']
                     ) %>%  dplyr::mutate(pop = as.character(pop))
+  
+  if (is.na(o$se)){
+    message("WARNING: The model convergence was not successful. No constraints were used.")
+    mod <- lavaan::sem(model, data=data, check.gradient = FALSE)
+    invisible(capture.output(mod <- lavaan::summary(mod, fit.measures=TRUE)))
+    o <- tibble::tibble(
+                      Methods=modname,
+                      pop=1:2,
+                      nsnp=nrow(data),
+                      bivhat=mod$PE$est[1:2],
+                      se=mod$PE$se[1:2],
+                      pval=mod$PE$pvalue[1:2],
+                      aic=mod$FIT['aic']
+                    ) %>%  dplyr::mutate(pop = as.character(pop))
+  }
   return(o)
 })
 
