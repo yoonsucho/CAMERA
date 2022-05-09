@@ -1283,7 +1283,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
              {
               n <- subset(mer, id == j & SNP %in% m$SNP) %>% dplyr::arrange(SNP)
               o <- n %>%
-                    {private$prop_overlap(m$pleio, .$pleio, sqrt(m$sd), sqrt(.$sd), alpha=0.05)}
+                    {g$.__enclos_env__$private$prop_overlap(m$pleio, .$pleio, sqrt(m$sd), sqrt(.$sd), alpha=0.05)}
               o$res <- o$res %>%
                     dplyr::mutate(discovery=i, replication=j) %>%
                     dplyr::select(discovery, replication, dplyr::everything())
@@ -1302,8 +1302,19 @@ CAMERA <- R6::R6Class("CAMERA", list(
         return(list(overall=overall, pervariant=pervariant))
         })
 
-      self$instrument_pleiotropy_summary <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
-      print(self$instrument_pleiotropy_summary)
+  res <- lapply(o, function(x) x$overall) %>% dplyr::bind_rows()
+
+  pval <- list()
+      for (i in 1:(nrow(test)/2))
+      {
+        pval[i] <- round(binom.test(test$value[c(FALSE, TRUE)][i], test$nsnp[c(FALSE, TRUE)][i], p = test$value[c(TRUE, FALSE)][i]/test$nsnp[c(FALSE, TRUE)][i])$p.value ,3)
+      }
+  pval <- tibble(pvalue_diff = unlist(pval, use.names = FALSE))
+  pval <- pval[rep(1:nrow(pval), each = 2), ]
+
+  self$instrument_pleiotropy_summary <- cbind(res, pval) %>% dplyr::mutate(pvalue = ifelse(row_number() %% 2, pvalue_diff, "."))
+
+  print(self$instrument_pleiotropy_summary)
   }
 
 ))
