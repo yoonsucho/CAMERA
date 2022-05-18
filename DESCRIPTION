@@ -6,7 +6,7 @@ Authors@R: c(
     person("Gibran", "Hemani", , "g.hemani@bristol.ac.uk", role = c("aut", "cre"))
   )
 Description: CAMERA estimates joint causal effect in multiple ancestries
-    and detects pleiotropy via the zero relevance mode
+    and detects pleiotropy via the zero relevance model.
 License: MIT + file LICENSE
 Imports: 
     dplyr,
