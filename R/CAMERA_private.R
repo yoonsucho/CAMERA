@@ -1,3 +1,4 @@
+#' @importFrom tibble tibble
 CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, alpha)
 {
   p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
@@ -13,6 +14,7 @@ CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, a
 })
 
 
+#' @importFrom tibble tibble
 CAMERA$set("private", "susie_overlaps", function(su1, su2)
 {
   l <- list()
@@ -47,6 +49,7 @@ CAMERA$set("private", "susie_overlaps", function(su1, su2)
 })
 
 
+#' @importFrom tibble tibble
 CAMERA$set("private", "runsem", function(model, data, modname)
 {
   mod <- lavaan::sem(model, data=data)
@@ -195,6 +198,7 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
 
 
 
+#' @importFrom tibble tibble
 CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, b_out_se, b_exp, b_exp_se)
 {
   expected_b_out <- b_exp * slope
