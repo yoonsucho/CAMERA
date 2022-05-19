@@ -13,7 +13,6 @@ CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, a
   return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
 })
 
-
 #' @importFrom tibble tibble
 CAMERA$set("private", "susie_overlaps", function(su1, su2)
 {
@@ -47,7 +46,6 @@ CAMERA$set("private", "susie_overlaps", function(su1, su2)
   }
   return(l)
 })
-
 
 #' @importFrom tibble tibble
 CAMERA$set("private", "runsem", function(model, data, modname)
@@ -195,7 +193,6 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
   }
   return(dat)
 })
-
 
 
 #' @importFrom tibble tibble
