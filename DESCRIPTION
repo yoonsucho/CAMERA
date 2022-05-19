@@ -16,6 +16,7 @@ Imports:
     magrittr,
     RadialMR,
     susieR,
+    tibble,
     tidyr,
     TwoSampleMR,
     winnerscurse
