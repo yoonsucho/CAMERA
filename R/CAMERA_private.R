@@ -118,6 +118,7 @@ CAMERA$set("private", "jackknife2", function (x, theta, ...)
               call = call))
 })
 
+#' @importFrom TwoSampleMR estimate_trait_sd
 CAMERA$set("private", "sd_standardise", function (dat=dat)
 {
  d <- dat %>%
