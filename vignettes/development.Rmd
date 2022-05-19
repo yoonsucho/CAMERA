@@ -63,15 +63,20 @@ Plink (ver.1.90) and LD reference data are required to identify instruments that
 ```{r}
 # Need to specify path to plink and LD reference data here.
 # The following exposures and the outcomes will be used: Exposures: BMI (EUR, EAS); Outcomes: CHD (EUR, EAS)
-x <- CAMERA$new(
-  		exposure_ids=c("ieu-a-2", "bbj-a-1"), 
-  		outcome_ids=c("ieu-a-7", "bbj-a-109"), 
-  		pops = c("EUR", "EAS"),
-  		bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
-  		plink = genetics.binaRies::get_plink_binary(), 		
-  		radius=50000, 
-  		clump_pop="EAS"
+if (!requireNamespace("genetics.binaRies", quietly = TRUE)) {
+  print("Package \"genetics.binaRies\" must be installed to run this chunk.")
+  knitr::knit_exit()
+} else {
+  x <- CAMERA$new(
+  	exposure_ids=c("ieu-a-2", "bbj-a-1"), 
+  	outcome_ids=c("ieu-a-7", "bbj-a-109"), 
+  	pops = c("EUR", "EAS"),
+  	bfiles=c("/Users/yc16575/OneDrive - University of Bristol/EUR", "/Users/yc16575/OneDrive - University of Bristol/EAS"), 		
+  	plink = genetics.binaRies::get_plink_binary(), 		
+  	radius=50000, 
+  	clump_pop="EAS"
 	)
+}
 ```
 
 Make sure that the exposures/outcomes are matched across the populations. Population 1 and 2 should have the same exposure-outcome pair. Also, instrument-trait associations should be consistent between the populations (e.g. how similar SNP-BMI association in EUR to SNP-BMI assocation in EAS). You can check this as follows:
