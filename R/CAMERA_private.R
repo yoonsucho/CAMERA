@@ -140,7 +140,6 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
  }
 })
 
-
 CAMERA$set("private", "allele_frequency", function (dat=dat)
 {
  if(!any(names(dat) %in% c("beta.outcome")))
