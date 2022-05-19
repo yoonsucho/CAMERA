@@ -180,12 +180,12 @@ head(x$harmonised_dat_sem)
 
 ### Step 6. Perform MR using genomic structural equation model (MR-SEM)
 
-```{r}
+```{r, eval=FALSE}
 x$perform_basic_sem()
 ```
 
 You can also perform MR-SEM using the instruments from the Step 3.
-```{r}
+```{r, eval=FALSE}
 # Standardise the betas and SEs if required
 x$make_outcome_data(exp=x$instrument_maxz, p_exp=1)
 head(x$instrument_outcome)
