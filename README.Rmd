@@ -24,7 +24,7 @@ The goal of CAMERA is to estimate causal effects using summary statistics in mul
 1) Jointly modelling causal and pleiotropic effects across multiple populations. 
 
 ## Installation
-You can install the released / development version of CAMERA from github with:
+You can install the released / development version of CAMERA from GitHub with:
 
 ``` r
 install.packages("remotes")
