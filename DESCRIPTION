@@ -11,7 +11,6 @@ License: MIT + file LICENSE
 Imports: 
     dplyr,
     ggplot2,
-    gwasglue,
     ieugwasr,
     lavaan,
     magrittr,
@@ -31,7 +30,6 @@ VignetteBuilder:
 Remotes:
     amandaforde/winnerscurse,
     explodecomputer/genetics.binaRies,
-    MRCIEU/gwasglue,
     MRCIEU/ieugwasr,
     MRCIEU/TwoSampleMR,
     WSpiller/RadialMR
