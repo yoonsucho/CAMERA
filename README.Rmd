@@ -26,8 +26,8 @@ The goal of CAMERA is to estimate causal effect using summary statistics in mult
 You can install the released / development version of CAMERA from github with:
 
 ``` r
-install.packages("devtools")
-devtools::install_github("universe77/CAMERA")
+install.packages("remotes")
+remotes::install_github("universe77/CAMERA")
 ```
 
 ## Example
