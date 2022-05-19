@@ -32,8 +32,8 @@ The following analyses should run within a couple of minutes, depending on inter
 To install CAMERA:
 
 ```r
-install.packages("devtools")
-devtools::install_github("universe77/CAMERA")
+install.packages("remotes")
+remotes::install_github("universe77/CAMERA")
 library(CAMERA)
 ```
 
