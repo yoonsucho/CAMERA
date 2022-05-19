@@ -309,7 +309,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
             a$selected <- a$rsid %in% instruments$rsid
             ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
               ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected), , colour="black") +
+              ggplot2::geom_point(data=subset(a, selected), colour="black") +
               ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
 
@@ -320,10 +320,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
             a$selected_paintor <- a$rsid %in% self$instrument_paintor$rsid
             ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
               ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected_raw), , colour="black") +
-              ggplot2::geom_point(data=subset(a, selected_maxz), , colour="purple", shape=15) +
-              ggplot2::geom_point(data=subset(a, selected_susie), , colour="orange", shape=17) +
-              ggplot2::geom_point(data=subset(a, selected_paintor), , colour="brown", shape=18) +
+              ggplot2::geom_point(data=subset(a, selected_raw), colour="black") +
+              ggplot2::geom_point(data=subset(a, selected_maxz), colour="purple", shape=15) +
+              ggplot2::geom_point(data=subset(a, selected_susie), colour="orange", shape=17) +
+              ggplot2::geom_point(data=subset(a, selected_paintor), colour="brown", shape=18) +
               ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
   },
