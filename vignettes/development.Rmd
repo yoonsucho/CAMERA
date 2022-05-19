@@ -226,4 +226,3 @@ You can also make harmonised data again after standaridisation / scaling:
 x$harmonised_dat(exp=x$standardised_instrument_raw, out=x$standardised_outcome)
 head(x$harmonised_dat_sem)
 ```
-
