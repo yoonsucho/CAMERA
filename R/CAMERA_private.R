@@ -13,6 +13,7 @@ CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, a
   return(list(res=res, variants=dplyr::tibble(sig=p_sig, sign=p_sign)))
 })
 
+#' @importFrom dplyr bind_rows mutate arrange
 #' @importFrom tibble tibble
 CAMERA$set("private", "susie_overlaps", function(su1, su2)
 {
@@ -48,6 +49,7 @@ CAMERA$set("private", "susie_overlaps", function(su1, su2)
 })
 
 #' @importFrom tibble tibble
+#' @importFrom dplyr mutate
 CAMERA$set("private", "runsem", function(model, data, modname)
 {
   mod <- lavaan::sem(model, data=data)
@@ -120,6 +122,7 @@ CAMERA$set("private", "jackknife2", function (x, theta, ...)
 })
 
 #' @importFrom TwoSampleMR estimate_trait_sd
+#' @importFrom dplyr group_by mutate
 CAMERA$set("private", "sd_standardise", function (dat=dat)
 {
  d <- dat %>%
@@ -140,6 +143,7 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
  }
 })
 
+#' @importFrom dplyr mutate group_by bind_rows
 CAMERA$set("private", "allele_frequency", function (dat=dat)
 {
  if(!any(names(dat) %in% c("beta.outcome")))
