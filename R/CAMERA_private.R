@@ -49,7 +49,6 @@ CAMERA$set("private", "susie_overlaps", function(su1, su2)
 })
 
 #' @importFrom tibble tibble
-#' @importFrom lavaan sem
 #' @importFrom dplyr mutate
 CAMERA$set("private", "runsem", function(model, data, modname)
 {
