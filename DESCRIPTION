@@ -1,35 +1,31 @@
 Package: CAMERA
 Title: CAMERA (Cross Ancestral Mendelian Randomisation)
 Version: 0.0.0.9000
-Authors@R: c(
-    person("Yoonsu", "Cho", , "yoonsu.cho@bristol.ac.uk", role = "aut"),
-    person("Gibran", "Hemani", , "g.hemani@bristol.ac.uk", role = c("aut", "cre"))
-  )
-Description: CAMERA estimates joint causal effect in multiple ancestries
-    and detects pleiotropy via the zero relevance mode
+Authors@R: 
+    c(person("Yoonsu", "Cho", email = "yoonsu.cho@bristol.ac.uk", role = c("aut")), 
+    person("Gibran", "Hemani", email = "g.hemani@bristol.ac.uk", role = c("aut", "cre")))
+Description: CAMERA estimates joint causal effect in multiple ancestries and detects pleiotropy via the zero relevance mode
 License: MIT + file LICENSE
-Imports: 
-    dplyr,
-    genetics.binaRies,
-    ggplot2,
-    gwasglue,
-    ieugwasr,
-    magrittr,
-    parallel,
-    RadialMR,
-    susieR,
-    tidyr,
-    tidyverse,
-    TwoSampleMR,
-    winnerscurse
-Suggests: 
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0)
-VignetteBuilder: 
-    knitr
-Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.0
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Imports: ieugwasr,
+        gwasglue,
+        TwoSampleMR,
+        susieR,
+        ggplot2,
+        dplyr,
+        winnerscurse,
+	    tidyverse,
+	    tidyr,
+        magrittr,
+        genetics.binaRies,
+        parallel,
+        RadialMR
+Config/testthat/edition: 3
