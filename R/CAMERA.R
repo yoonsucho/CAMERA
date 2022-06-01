@@ -132,7 +132,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #'  This function searches for GWAS significant SNPs (P < 5E-8) for a specified set of the exposures. This method is equivalant to the instrumnet extraction method for Multivariable MR. Reference here: https://mrcieu.github.io/TwoSampleMR/reference/mv_extract_exposures.html.
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
 #' @return Data frame in x$instrument_raw
-#' @importFrom ieugwasr variants_rsid
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
     suppressMessages(instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...))
@@ -170,7 +169,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param instrument_raw A set of instruments obtained from \code{x$extract_instruments()}
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
 #' @return Data frame in x$instrument_regions
-#' @importFrom ieugwasr associations
   extract_instrument_regions = function(radius=self$radius, instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids)
   {
     # return a list of lists e.g.
@@ -340,7 +338,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
 #' @param plink Location of executable plink (ver.1.90 is recommended)
 #' @return Data frame of LD matrix (x$ld_matrices)
-#' @importFrom ieugwasr ld_matrix
   regional_ld_matrices = function(instrument_regions=self$instrument_regions, bfiles=self$bfiles, pops=self$pops, plink=self$plink)
   {
 
