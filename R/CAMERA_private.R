@@ -60,7 +60,7 @@ CAMERA$set("private", "runsem", function(model, data, modname)
                       pval=mod$PE$pvalue[1:2],
                       aic=mod$FIT['aic']
                     ) %>%  dplyr::mutate(pop = as.character(pop))
-
+  
   if (is.na(o$se)){
     message("WARNING: The model convergence was not successful. No constraints were used.")
     mod <- lavaan::sem(model, data=data, check.gradient = FALSE)
@@ -140,26 +140,26 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
 
 
 CAMERA$set("private", "allele_frequency", function (dat=dat)
-{
+{ 
  if(!any(names(dat) %in% c("beta.outcome")))
  {
-    dat <- dat %>%
+    dat <- dat %>% 
                dplyr::mutate(pops = factor(ifelse(id == self$exposure_ids[[1]], self$pops[[1]], self$pops[[2]])))
     index <- which(is.na(dat$eaf2))
     id <- unique(dat$id[index])
     pop <- unique(dat$pops[index])
 
     if(length(id)==1) {
-      dat <- dat %>%
+      dat <- dat %>% 
                 dplyr::group_by(id) %>%
                 dplyr::mutate(eaf = ifelse(is.na(eaf), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]], eaf)) %>%
-                as.data.frame()}
+                as.data.frame()} 
 
     if(length(id)>1) {
       af <- list()
       for (i in pop){
-        af[[i]] <- dat %>%
-        subset(., pops==i) %>%
+        af[[i]] <- dat %>% 
+        subset(., pops==i) %>% 
                            dplyr::mutate(eaf = ifelse(is.na(eaf), ieugwasr::afl2_rsid(rsid)[[paste0("AF.", pop)]], eaf)) %>%
                            as.data.frame()}
       dat <- af %>% dplyr::bind_rows()}
@@ -167,7 +167,7 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
 
  if(any(names(dat) %in% c("beta.outcome")))
  {
-    dat <- dat %>%
+    dat <- dat %>% 
       dplyr::mutate(pops = factor(ifelse(id.outcome == self$outcome_ids[[1]], self$pops[[1]], self$pops[[2]])))
 
     index <- which(is.na(dat$eaf.outcome))
@@ -175,15 +175,15 @@ CAMERA$set("private", "allele_frequency", function (dat=dat)
     pop <- unique(dat$pops[index])
 
     if(length(id)==1) {
-        dat <- dat %>%
+        dat <- dat %>% 
                dplyr::mutate(eaf.outcome = ifelse(is.na(eaf.outcome), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", pop)]], eaf.outcome)) %>%
-               as.data.frame()}
+               as.data.frame()} 
 
     if(length(id)>1) {
       af <- list()
       for (i in pop){
-        af[[i]] <- dat %>%
-                      subset(., pops==i)  %>%
+        af[[i]] <- dat %>% 
+                      subset(., pops==i)  %>% 
                       dplyr::mutate(eaf.outcome = ifelse(is.na(eaf.outcome), ieugwasr::afl2_rsid(SNP)[[paste0("AF.", i)]], eaf.outcome)) %>%
                       as.data.frame()}
       dat <- af %>% dplyr::bind_rows()
@@ -214,7 +214,7 @@ CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, 
 })
 
 
-CAMERA$set("private", "bootstrap", function(wr, wr.se, ivw, ivw.se, nboot=1000)
+CAMERA$set("private", "bootstrap", function(wr, wr.se, ivw, ivw.se, nboot=1000) 
 {
   res <- rnorm(nboot, wr, wr.se) - rnorm(nboot, ivw, ivw.se)
   pe <- wr - ivw
