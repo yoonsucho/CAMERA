@@ -463,7 +463,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param dat Genomic regions identified by using \code{x$extract_instrument_regions()}
 #' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
 #' @return Result from susieR in x$susie_results. Data frame in x$instrument_susie
-#' @importFrom susieR susie_rss
  susie_finemap_regions = function(dat=self$instrument_regions, ld=self$ld_matrices)
   {
    resnps <- names(ld)
