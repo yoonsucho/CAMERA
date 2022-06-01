@@ -10,6 +10,7 @@ Description: CAMERA estimates joint causal effect in multiple ancestries
 License: MIT + file LICENSE
 Imports: 
     dplyr,
+    genetics.binaRies,
     ggplot2,
     gwasglue,
     ieugwasr,
@@ -23,7 +24,6 @@ Imports:
     TwoSampleMR,
     winnerscurse
 Suggests: 
-    genetics.binaRies,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
