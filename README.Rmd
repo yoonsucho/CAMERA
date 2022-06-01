@@ -20,8 +20,8 @@ knitr::opts_chunk$set(
 The goal of CAMERA is to estimate causal effects using summary statistics in multiple ancestries. CAMERA provides:
 
 1) Selecting genetic instruments for multiple populations. 
-1) Estimating the causal effect where exposure and outcome summary statistics are from different ancestral populations.
-1) Jointly modelling causal and pleiotropic effects across multiple populations. 
+2) Estimate causal effect where exposure and outcome summary statistics were from different ancestral populations.
+2) Jointly modelling causal and pleiotropic effects across multiple populations. 
 
 ## Installation
 You can install the released / development version of CAMERA from github with:
