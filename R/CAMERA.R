@@ -1015,7 +1015,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @param winnerscurse Use this option to correct winners' curse bias.
 #' @return Table of the results. Summary of the results available in x$instrument_specificity_summary.
-#' @importFrom winnerscurse cl_interval
   estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
