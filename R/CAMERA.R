@@ -1307,12 +1307,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
   pval <- list()
   for (i in 1:(nrow(res)/2))
     {
-     if(res$nsnp[c(FALSE, TRUE)][i]!=0){
+     if(res$nsnp[c(FALSE, TRUE)][i]!=0){ 
         pval[i] <- round(binom.test(res$value[c(FALSE, TRUE)][i], res$nsnp[c(FALSE, TRUE)][i], p = res$value[c(TRUE, FALSE)][i]/res$nsnp[c(FALSE, TRUE)][i])$p.value ,3)
         }
-     if(res$nsnp[c(FALSE, TRUE)][i]==0){
+     if(res$nsnp[c(FALSE, TRUE)][i]==0){ 
         pval[i] <- NA
-        }
+        } 
      }
   pval <- tibble::tibble(pvalue_diff = unlist(pval, use.names = FALSE))
   pval <- pval[rep(1:nrow(pval), each = 2), ]
