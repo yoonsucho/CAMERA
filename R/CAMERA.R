@@ -88,7 +88,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #'  This function evaluates how competitable genetic associations in population 1 are with those in population 2. The function checks whether 1) the chosen IDs for the exposure or outcome can be used for the further steps and 2) the units for the genetic associations are comparable between populations.
 #' @param ids ID for the exposure or the outcome. Default is x$exposure_ids.
 #' @return Table of the result.
-#' @importFrom TwoSampleMR extract_instruments extract_outcome_data harmonise_data mr add_metadata mv_extract_exposures mr_ivw mr_simple_mode_nome estimate_trait_sd
   check_phenotypes = function(ids=self$exposure_ids)
   {
     o <- lapply(ids, function(i) {tryCatch(
@@ -132,7 +131,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #'  This function searches for GWAS significant SNPs (P < 5E-8) for a specified set of the exposures. This method is equivalant to the instrumnet extraction method for Multivariable MR. Reference here: https://mrcieu.github.io/TwoSampleMR/reference/mv_extract_exposures.html.
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
 #' @return Data frame in x$instrument_raw
-#' @importFrom ieugwasr variants_rsid
   extract_instruments = function(exposure_ids=self$exposure_ids, ...)
   {
     suppressMessages(instrument_raw <- TwoSampleMR::mv_extract_exposures(exposure_ids, ...))
@@ -170,7 +168,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param instrument_raw A set of instruments obtained from \code{x$extract_instruments()}
 #' @param exposure_ids ID for the exposure. Default is x$exposure_ids.
 #' @return Data frame in x$instrument_regions
-#' @importFrom ieugwasr associations
   extract_instrument_regions = function(radius=self$radius, instrument_raw=self$instrument_raw, exposure_ids=self$exposure_ids)
   {
     # return a list of lists e.g.
@@ -292,7 +289,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param instruments Use this option to draw a separate plot for the selcted instruments.
 #' @param comparison Use this option to compare the selected instruments by different instrument selection methods in one plot.
 #' @return Plot
-#' @importFrom ggplot2 ggplot aes geom_point facet_grid geom_smooth scale_colour_brewer scale_x_log10 scale_y_log10 xlab ylab
   plot_regional_instruments = function(instrument_region_zscores=self$instrument_region_zscores, instruments=self$instrument_raw, region=1:min(10, nrow(instruments)), comparison=FALSE)
   {
       a <- instrument_region_zscores[region]
@@ -313,7 +309,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
             a$selected <- a$rsid %in% instruments$rsid
             ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
               ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected), colour="black") +
+              ggplot2::geom_point(data=subset(a, selected), , colour="black") +
               ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
 
@@ -324,10 +320,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
             a$selected_paintor <- a$rsid %in% self$instrument_paintor$rsid
             ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
               ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected_raw), colour="black") +
-              ggplot2::geom_point(data=subset(a, selected_maxz), colour="purple", shape=15) +
-              ggplot2::geom_point(data=subset(a, selected_susie), colour="orange", shape=17) +
-              ggplot2::geom_point(data=subset(a, selected_paintor), colour="brown", shape=18) +
+              ggplot2::geom_point(data=subset(a, selected_raw), , colour="black") +
+              ggplot2::geom_point(data=subset(a, selected_maxz), , colour="purple", shape=15) +
+              ggplot2::geom_point(data=subset(a, selected_susie), , colour="orange", shape=17) +
+              ggplot2::geom_point(data=subset(a, selected_paintor), , colour="brown", shape=18) +
               ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
   },
@@ -341,7 +337,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
 #' @param plink Location of executable plink (ver.1.90 is recommended)
 #' @return Data frame of LD matrix (x$ld_matrices)
-#' @importFrom ieugwasr ld_matrix
   regional_ld_matrices = function(instrument_regions=self$instrument_regions, bfiles=self$bfiles, pops=self$pops, plink=self$plink)
   {
 
@@ -468,7 +463,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param dat Genomic regions identified by using \code{x$extract_instrument_regions()}
 #' @param ld LD matrix obtained by using \code{x$regional_ld_matrices()}
 #' @return Result from susieR in x$susie_results. Data frame in x$instrument_susie
-#' @importFrom susieR susie_rss
  susie_finemap_regions = function(dat=self$instrument_regions, ld=self$ld_matrices)
   {
    resnps <- names(ld)
@@ -1015,7 +1009,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @param winnerscurse Use this option to correct winners' curse bias.
 #' @return Table of the results. Summary of the results available in x$instrument_specificity_summary.
-#' @importFrom winnerscurse cl_interval
   estimate_instrument_specificity = function(instrument, alpha="bonferroni", winnerscurse=FALSE)
   {
     if(alpha=="bonferroni")
@@ -1184,7 +1177,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' Return a list of outlying SNPs in each population
 #' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
 #' @return List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat.
-#' @importFrom RadialMR format_radial ivw_radial
   pleiotropy = function(harmonised_dat=self$harmonised_dat_sem){
     stopifnot(!is.null(harmonised_dat))
 
@@ -1315,12 +1307,12 @@ CAMERA <- R6::R6Class("CAMERA", list(
   pval <- list()
   for (i in 1:(nrow(res)/2))
     {
-     if(res$nsnp[c(FALSE, TRUE)][i]!=0){
+     if(res$nsnp[c(FALSE, TRUE)][i]!=0){ 
         pval[i] <- round(binom.test(res$value[c(FALSE, TRUE)][i], res$nsnp[c(FALSE, TRUE)][i], p = res$value[c(TRUE, FALSE)][i]/res$nsnp[c(FALSE, TRUE)][i])$p.value ,3)
         }
-     if(res$nsnp[c(FALSE, TRUE)][i]==0){
+     if(res$nsnp[c(FALSE, TRUE)][i]==0){ 
         pval[i] <- NA
-        }
+        } 
      }
   pval <- tibble::tibble(pvalue_diff = unlist(pval, use.names = FALSE))
   pval <- pval[rep(1:nrow(pval), each = 2), ]
@@ -1331,3 +1323,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
   }
 
 ))
+
+
+
