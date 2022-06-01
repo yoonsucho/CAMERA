@@ -3,7 +3,7 @@ CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, a
   p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
   p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
   p_rep <- pnorm(abs(b_rep)/se_rep, lower.tail=FALSE)
-  res <- tibble::tibble(
+  res <- dplyr::tibble(
     nsnp=length(b_disc),
     metric=c("Sign", "Sign", "P-value", "P-value"),
     datum=c("Expected", "Observed", "Expected", "Observed"),
