@@ -46,7 +46,7 @@ library(CAMERA)
 CAMERA begins by choosing an exposure and outcome hypothesis that can be tested in multi-ancestral populations. Here, we will be estimating the causal effect of body mass index (BMI) on coronary heart disease (CHD) in European ancestry (EUR) and East Asian ancestry (EAS). 
 
 Summary statistics data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. A list of available traits can be obtained using:
-```{r}
+```r
 traits <- TwoSampleMR::available_outcomes()
 ```
 You can also browse the available traits here: https://gwas.mrcieu.ac.uk/
