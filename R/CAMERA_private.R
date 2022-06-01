@@ -124,7 +124,6 @@ CAMERA$set("private", "jackknife2", function (x, theta, ...)
 
 #' @importFrom TwoSampleMR estimate_trait_sd
 #' @importFrom dplyr group_by mutate
-#' @importFrom tidyr replace_na
 CAMERA$set("private", "sd_standardise", function (dat=dat)
 {
  d <- dat %>%
