@@ -146,7 +146,6 @@ CAMERA$set("private", "sd_standardise", function (dat=dat)
 })
 
 #' @importFrom dplyr mutate group_by bind_rows
-#' @importFrom ieugwasr afl2_rsid
 CAMERA$set("private", "allele_frequency", function (dat=dat)
 {
  if(!any(names(dat) %in% c("beta.outcome")))
