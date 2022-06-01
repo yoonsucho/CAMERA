@@ -19,6 +19,7 @@ Imports:
     RadialMR,
     susieR,
     tidyr,
+    tidyverse,
     TwoSampleMR,
     winnerscurse
 Suggests: 
