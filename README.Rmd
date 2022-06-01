@@ -31,4 +31,4 @@ remotes::install_github("universe77/CAMERA")
 ```
 
 ## Example
-A basic example is provided in a vignette.
+A basic example is provided in vignettes
