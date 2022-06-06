@@ -311,10 +311,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
       if(comparison==FALSE){
             a$selected <- a$rsid %in% instruments$rsid
-            ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
-              ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected), colour="black") +
-              ggplot2::facet_grid(name ~ original_rsid, scale="free")
+            p <- ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
+                 ggplot2::geom_point(ggplot2::aes(colour=name)) +
+                 ggplot2::geom_point(data=subset(a, selected), colour="black") +
+                 ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
 
       if(comparison==TRUE){
@@ -322,14 +322,15 @@ CAMERA <- R6::R6Class("CAMERA", list(
             a$selected_maxz <- a$rsid %in% self$instrument_maxz$rsid
             a$selected_susie <- a$rsid %in% self$instrument_susie$rsid
             a$selected_paintor <- a$rsid %in% self$instrument_paintor$rsid
-            ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
-              ggplot2::geom_point(ggplot2::aes(colour=name)) +
-              ggplot2::geom_point(data=subset(a, selected_raw), colour="black") +
-              ggplot2::geom_point(data=subset(a, selected_maxz), colour="purple", shape=15) +
-              ggplot2::geom_point(data=subset(a, selected_susie), colour="orange", shape=17) +
-              ggplot2::geom_point(data=subset(a, selected_paintor), colour="brown", shape=18) +
-              ggplot2::facet_grid(name ~ original_rsid, scale="free")
+            p <- ggplot2::ggplot(a, ggplot2::aes(x=position, y=value)) +
+                 ggplot2::geom_point(ggplot2::aes(colour=name)) +
+                 ggplot2::geom_point(data=subset(a, selected_raw), colour="black") +
+                 ggplot2::geom_point(data=subset(a, selected_maxz), colour="purple", shape=15) +
+                 ggplot2::geom_point(data=subset(a, selected_susie), colour="orange", shape=17) +
+                 ggplot2::geom_point(data=subset(a, selected_paintor), colour="brown", shape=18) +
+                 ggplot2::facet_grid(name ~ original_rsid, scale="free")
       }
+      p
   },
 
   # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
