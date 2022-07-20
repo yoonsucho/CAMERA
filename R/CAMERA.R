@@ -415,7 +415,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
 
     rep <- instrument_pop[[1]] %>% dplyr::select(rsid)
     rep$sign <- sign(instrument_pop[[1]]$beta)==sign(instrument_pop[[2]]$beta)
-    rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[1]]$p<5e-8
+    rep$sig <- instrument_pop[[1]]$p<5e-8 & instrument_pop[[2]]$p<5e-8
 
     fam1 <- read.table(paste0(self$bfiles[[1]], ".fam"), header = FALSE)
     n1 <- length(unique(fam1[[1]]))
@@ -778,11 +778,25 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @param method IVW or Simple MODE
 #' @return Table of the result
- instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni", method="ivw")
+ instrument_heterogeneity = function(instrument=self$instrument_raw, alpha="bonferroni", method="ivw", outlier_removal=FALSE)
   {
     if(alpha=="bonferroni")
     {
       alpha <- 0.05/nrow(instrument)
+    }
+
+    
+    if(outlier_removal==TRUE)
+    { 
+      d <- dplyr::inner_join(
+                             subset(instrument, id == self$exposure_ids[[1]]),
+                             subset(instrument, id == self$exposure_ids[[2]]),
+                             by="rsid")
+
+      rd <- RadialMR::format_radial(d$beta.x, d$beta.y, d$se.x, d$se.y, d$rsid)
+      outliers <- RadialMR::ivw_radial(rd, alpha, 3, 0.0001, FALSE)$outliers$SNP
+
+      instrument <- subset(instrument, !rsid %in% outliers) 
     }
 
     if(method=="ivw")
@@ -940,7 +954,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
      if(!any(names(dat) %in% c("beta.outcome")))
       {
         stopifnot(!is.null(self$instrument_maxz))
-        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method=scaling_method)))
+        invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method=scaling_method, outlier_removal=TRUE)))
         bxx <- scale$agreement[1]
         if(!is.null(self[[paste0("standardised_instrument_", dat$method[[1]])]]))
         {
@@ -958,6 +972,20 @@ CAMERA <- R6::R6Class("CAMERA", list(
         if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
         if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
         if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
+
+        dx <- dplyr::inner_join(
+                                subset(exp, id == self$exposure_ids[[1]]),
+                                subset(exp, id == self$exposure_ids[[2]]),
+                                by="rsid"
+                                ) 
+
+        p <- dx %>%
+                    ggplot2::ggplot(., ggplot2::aes(x=beta.x, y=beta.y)) +
+                    ggplot2::scale_colour_brewer(type="qual") +
+                    ggplot2::scale_x_log10() +
+                    ggplot2::scale_y_log10() +
+                    ggplot2::ylab('scaled beta in pop2') +
+                    ggplot2::xlab('scaled beta in pop1')
       }
 
     if(any(names(dat) %in% c("beta.outcome")))
@@ -999,7 +1027,21 @@ CAMERA <- R6::R6Class("CAMERA", list(
         self$instrument_region_zscores <- oz
 
         self$standardised_outcome <- out
+
+        dy <- dplyr::inner_join(
+                              subset(out, id.outcome == self$outcome_ids[[1]]),
+                              subset(out, id.outcome == self$outcome_ids[[2]]),
+            by="SNP")
+
+        p <- dy %>%
+                    ggplot2::ggplot(., ggplot2::aes(x=beta.outcome.x, y=beta.outcome.y)) +
+                    ggplot2::scale_colour_brewer(type="qual") +
+                    ggplot2::scale_x_log10() +
+                    ggplot2::scale_y_log10() +
+                    ggplot2::ylab('scaled beta in pop2') +
+                    ggplot2::xlab('scaled beta in pop1')
       }
+      print(p)
     }
 
     invisible(self)
