@@ -782,21 +782,27 @@ CAMERA <- R6::R6Class("CAMERA", list(
   {
     if(alpha=="bonferroni")
     {
-      alpha <- 0.05/nrow(instrument)
+      alpha <- 0.05/(nrow(instrument))
     }
 
-    
+
     if(outlier_removal==TRUE)
-    { 
+    {
       d <- dplyr::inner_join(
                              subset(instrument, id == self$exposure_ids[[1]]),
                              subset(instrument, id == self$exposure_ids[[2]]),
                              by="rsid")
 
       rd <- RadialMR::format_radial(d$beta.x, d$beta.y, d$se.x, d$se.y, d$rsid)
-      outliers <- RadialMR::ivw_radial(rd, alpha, 3, 0.0001, FALSE)$outliers$SNP
+      outliers <- RadialMR::ivw_radial(rd, alpha, 3, 0.0001, FALSE)$outliers
 
-      instrument <- subset(instrument, !rsid %in% outliers) 
+      if(outliers[1] != "No significant outliers"){
+        outliers <- outliers$SNP
+        instrument <- subset(instrument, !rsid %in% outliers)
+      }
+      if(outliers[1] == "No significant outliers"){
+      print("No significant outliers")
+      }
     }
 
     if(method=="ivw")
@@ -852,7 +858,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
            n <- subset(instrument, id == j & rsid %in% m$rsid)
            dat <-dplyr:: inner_join(m, n, by="rsid") %>%
              dplyr::select(SNP=rsid, x=beta.x, y=beta.y, xse=se.x, yse=se.y, xp=p.x, yp=p.y)
-           res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+           res <- suppressMessages(TwoSampleMR::mr_simple_mode(dat$x, dat$y, dat$xse, dat$yse)) %>%
              {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval)}
            return(res)
          })})
@@ -870,7 +876,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
            n <- subset(instrument, id.outcome == j & SNP %in% m$SNP)
            dat <-dplyr:: inner_join(m, n, by="SNP") %>%
              dplyr::select(SNP=SNP, x=beta.outcome.x, y=beta.outcome.y, xse=se.outcome.x, yse=se.outcome.y, xp=pval.outcome.x, yp=pval.outcome.y)
-           res <- suppressMessages(TwoSampleMR::mr_simple_mode_nome(dat$x, dat$y, dat$xse, dat$yse)) %>%
+           res <- suppressMessages(TwoSampleMR::mr_simple_mode(dat$x, dat$y, dat$xse, dat$yse)) %>%
              {tibble::tibble(Reference=i, Replication=j, nsnp=length(unique(dat$SNP)), agreement=.$b, se=.$se, pval=.$pval)}
            return(res)
          })})
@@ -954,7 +960,14 @@ CAMERA <- R6::R6Class("CAMERA", list(
      if(!any(names(dat) %in% c("beta.outcome")))
       {
         stopifnot(!is.null(self$instrument_maxz))
+        if(!length(self$instrument_maxz$units) == 1){
+          invisible(capture.output(self$standardise_data(dat=self$instrument_maxz, standardise_unit=TRUE, standardise_scale=FALSE)))
+          inst <- self$standardised_instrument_maxz
+          invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=inst, method=scaling_method, outlier_removal=TRUE)))
+        }
+        if(length(self$instrument_maxz$units) == 1){
         invisible(capture.output(scale <- self$instrument_heterogeneity(instrument=self$instrument_maxz, method=scaling_method, outlier_removal=TRUE)))
+        }
         bxx <- scale$agreement[1]
         if(!is.null(self[[paste0("standardised_instrument_", dat$method[[1]])]]))
         {
@@ -972,20 +985,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
         if(any(exp$method[[1]] %in% c("susie"))){self$standardised_instrument_susie <- exp}
         if(any(exp$method[[1]] %in% c("paintor"))){self$standardised_instrument_paintor <- exp}
         if(any(exp$method[[1]] %in% c("mscaviar"))){self$standardised_instrument_mscaviar <- exp}
-
-        dx <- dplyr::inner_join(
-                                subset(exp, id == self$exposure_ids[[1]]),
-                                subset(exp, id == self$exposure_ids[[2]]),
-                                by="rsid"
-                                ) 
-
-        p <- dx %>%
-                    ggplot2::ggplot(., ggplot2::aes(x=beta.x, y=beta.y)) +
-                    ggplot2::scale_colour_brewer(type="qual") +
-                    ggplot2::scale_x_log10() +
-                    ggplot2::scale_y_log10() +
-                    ggplot2::ylab('scaled beta in pop2') +
-                    ggplot2::xlab('scaled beta in pop1')
       }
 
     if(any(names(dat) %in% c("beta.outcome")))
@@ -1027,23 +1026,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
         self$instrument_region_zscores <- oz
 
         self$standardised_outcome <- out
-
-        dy <- dplyr::inner_join(
-                              subset(out, id.outcome == self$outcome_ids[[1]]),
-                              subset(out, id.outcome == self$outcome_ids[[2]]),
-            by="SNP")
-
-        p <- dy %>%
-                    ggplot2::ggplot(., ggplot2::aes(x=beta.outcome.x, y=beta.outcome.y)) +
-                    ggplot2::scale_colour_brewer(type="qual") +
-                    ggplot2::scale_x_log10() +
-                    ggplot2::scale_y_log10() +
-                    ggplot2::ylab('scaled beta in pop2') +
-                    ggplot2::xlab('scaled beta in pop1')
       }
-      print(p)
     }
-
     invisible(self)
   },
 
