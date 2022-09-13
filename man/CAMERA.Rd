@@ -366,7 +366,8 @@ The function evaluates heterogeneity in the association of selected instruments 
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$instrument_heterogeneity(
   instrument = self$instrument_raw,
   alpha = "bonferroni",
-  method = "ivw"
+  method = "ivw",
+  outlier_removal = FALSE
 )}\if{html}{\out{</div>}}
 }
 
