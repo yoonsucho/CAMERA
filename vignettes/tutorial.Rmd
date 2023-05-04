@@ -1,0 +1,79 @@
+---
+title: "tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(CAMERA)
+```
+
+
+
+
+BMI on CHD
+
+```{r}
+bfile_dir <- "/Users/gh13047/repo/opengwas-api-internal/opengwas-api/app/ld_files"
+x <- CAMERA$new(
+  exposure_ids=c("ukb-e-23104_CSA", "ukb-e-21001_AFR", "ukb-b-19953", "bbj-a-1"), 
+  outcome_ids=c("ukb-e-411_CSA", "ukb-e-411_AFR", "ieu-a-7", "bbj-a-109"), 
+  pops = c("SAS", "AFR", "EUR", "EAS"),
+  bfiles=file.path(bfile_dir, c("SAS", "AFR", "EUR", "EAS")),
+  plink = genetics.binaRies::get_plink_binary(), 		
+  radius=50000, 
+  clump_pop="EUR"
+)
+x
+```
+
+Check phenotypes
+
+```{r}
+x$check_phenotypes(ids=x$exposure_ids)
+```
+
+```{r}
+x$extract_instruments()
+head(x$instrument_raw)
+```
+
+
+```{r}
+x$instrument_heterogeneity(x$instrument_raw)
+x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
+```
+
+
+```{r}
+y$make_outcome_data()
+```
+
+```{r}
+load_all()
+x <- y
+y <- CAMERA$new()
+y$make_outcome_data
+y$import(x)
+y$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
+y$instrument_specificity_summary %>% as.data.frame
+y$instrument_specificity$distinct %>% table
+```
+
+```{r}
+y$extract_instrument_regions()
+x$regional_ld_matrices()
+```
+
+
+
