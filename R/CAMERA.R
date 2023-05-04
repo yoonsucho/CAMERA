@@ -158,7 +158,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
     if(length(id) > 0){
       message(paste0("Caution: No SNPs reached genome-wide significance threshold for the trait in ", id))
     }
-    self$instrument_raw <- instrument_raw
+    self$instrument_raw <- generate_vid(instrument_raw)
     invisible(self)
   },
 
@@ -179,7 +179,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
     # data frame
     # pop2:
     # data frame
-
     # create list of regions in chr:pos format
     regions <- unique(paste0(instrument_raw$chr, ":", instrument_raw$position-radius, "-", instrument_raw$position+radius))
 
@@ -190,6 +189,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
         message(id)
         ieugwasr::associations(r, id) %>%
           dplyr::arrange(position) %>%
+          generate_vid() %>%
           dplyr::filter(!duplicated(rsid))
       })
 
@@ -333,19 +333,21 @@ CAMERA <- R6::R6Class("CAMERA", list(
       p
   },
 
-  # If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
-  # We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
-#' @description
-#' The fuction obtains an LD matrix for the selected genomic regions.
-#' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
-#' @param bfiles Location of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
-#' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
-#' @param plink Location of executable plink (ver.1.90 is recommended)
-#' @return Data frame of LD matrix (x$ld_matrices)
-#' @importFrom ieugwasr ld_matrix
+  #' Generate LD matrices for instrument regions
+  #' 
+  #' @description
+  #' If we want to do fine mapping we need to get an LD matrix for the whole region (for each population)
+  #' We then need to harmonise the LD matrix to the summary data, and the summary datasets to each other
+  #' The fuction obtains an LD matrix for the selected genomic regions.
+  #'
+  #' @param instrument_regions Genomic regions identified by using \code{x$extract_instrument_regions()}
+  #' @param bfiles Location of LD reference files for each population (Download from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz)
+  #' @param pops Ancestry information for each population (i.e. AFR, AMR, EUR, EAS, SAS)
+  #' @param plink Location of executable plink (ver.1.90 is recommended)
+  #' @return Data frame of LD matrix (x$ld_matrices)
+  #' @importFrom ieugwasr ld_matrix
   regional_ld_matrices = function(instrument_regions=self$instrument_regions, bfiles=self$bfiles, pops=self$pops, plink=self$plink)
   {
-
     if(!is.null(bfiles))
     {
       stopifnot(length(bfiles) == length(self$exposure_ids))
@@ -1121,12 +1123,10 @@ CAMERA <- R6::R6Class("CAMERA", list(
 #' @param p_exp Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @return Data frame in x$instrument_outcome
   make_outcome_data = function(exp=self$instrument_raw, p_exp=0.05/nrow(exp)){
-      dx <- dplyr::inner_join(
-                              subset(exp, id == self$exposure_ids[[1]]),
-                              subset(exp, id == self$exposure_ids[[2]]),
-                              by="rsid"
-                              ) %>% dplyr::filter(p.x < p_exp)
-      suppressMessages(out <- TwoSampleMR::extract_outcome_data(snps=dx$rsid, outcomes=self$outcome_ids))
+      rsids <- unique(exp$rsido)
+      out <- TwoSampleMR::extract_outcome_data(snps=rsids, outcomes=self$outcome_ids) %>%
+        generate_vid(., ea="effect_allele.outcome", nea="other_allele.outcome", eaf="eaf.outcome", beta="beta.outcome", rsid="SNP", chr="chr", position="pos")
+      print(head(out))
       suppressMessages(out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>%
                               #dplyr::select(rsid=SNP, chr, position=pos, id=id.outcome, beta=beta.outcome, se=se.outcome, p=pval.exposure, ea=effect_allele.outcome, nea=other_allele.outcome, eaf=eaf.outcome, units=units.outcome, samplesize=contains("size")) %>%
                               as.data.frame()
@@ -1358,3 +1358,15 @@ CAMERA <- R6::R6Class("CAMERA", list(
   }
 
 ))
+
+generate_vid <- function(d, ea="ea", nea="nea", eaf="eaf", beta="beta", rsid="rsid", chr="chr", position="position") {
+  toflip <- d[[ea]] > d[[nea]]
+  d[[eaf]][toflip] <- 1 - d[[eaf]][toflip]
+  d[[beta]][toflip] <- d[[beta]][toflip] * -1
+  temp <- d[[nea]][toflip]
+  d[[nea]][toflip] <- d[[ea]][toflip]
+  d[[ea]][toflip] <- temp
+  d[["rsido"]] <- d[[rsid]]
+  d[[rsid]] <- paste0(d[[chr]], ":", d[[position]], "_", strtrim(d[[ea]], 5), "_", strtrim(d[[nea]], 5))
+  d
+}
