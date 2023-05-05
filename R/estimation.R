@@ -13,21 +13,13 @@ CAMERA$set("public", "perform_basic_sem", function(harmonised_dat = self$harmoni
 
   out <- list()
   out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
-    {
-      tibble::tibble(Methods = "IVW", pop = "1", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)
-    }
+    {tibble::tibble(Methods = "IVW", pop = "1", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)}
   out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
-    {
-      tibble::tibble(Methods = "IVW", pop = "2", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)
-    }
+    {tibble::tibble(Methods = "IVW", pop = "2", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)}
   out$rm1 <- summary(lm(o1 ~ -1 + w1, data = d)) %>%
-    {
-      tibble::tibble(Methods = "RadialIVW", pop = "1", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])
-    }
+    {tibble::tibble(Methods = "RadialIVW", pop = "1", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])}
   out$rm2 <- summary(lm(o2 ~ -1 + w2, data = d)) %>%
-    {
-      tibble::tibble(Methods = "RadialIVW", pop = "2", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])
-    }
+    {tibble::tibble(Methods = "RadialIVW", pop = "2", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])}
 
   out$semA <- private$runsem("
                                 y1 ~ biv*x1
@@ -59,7 +51,7 @@ CAMERA$set("public", "perform_basic_sem", function(harmonised_dat = self$harmoni
 #' @importFrom tibble tibble
 #' @importFrom lavaan sem
 #' @importFrom dplyr mutate
-CAMERA$set("private", "runsem", function(model, data, modname) {
+CAMERA$set("public", "runsem", function(model, data, modname) {
   mod <- lavaan::sem(model, data = data)
   invisible(capture.output(mod <- lavaan::summary(mod, fit.measures = TRUE)))
   o <- tibble::tibble(
@@ -90,7 +82,6 @@ CAMERA$set("private", "runsem", function(model, data, modname) {
 })
 
 
-
 CAMERA$set("private", "jackknife2", function(x, theta, ...) {
   call <- match.call()
   n <- length(x)
@@ -107,7 +98,6 @@ CAMERA$set("private", "jackknife2", function(x, theta, ...) {
     call = call
   ))
 })
-
 
 
 #' @importFrom tibble tibble
