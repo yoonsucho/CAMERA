@@ -63,19 +63,21 @@ CAMERA$set("public", "extract_instrument_regions", function(radius = self$radius
   # pop2:
   # data frame
   # create list of regions in chr:pos format
-  regions <- unique(paste0(instrument_raw$chr, ":", instrument_raw$position - radius, "-", instrument_raw$position + radius))
+  temp <- subset(instrument_raw, !duplicated(paste(chr, position)))
+  regions <- paste0(temp$chr, ":", temp$position - radius, "-", temp$position + radius)
 
   # Lookup each region in each exposure
   self$instrument_regions <- lapply(regions, function(r) {
     tryCatch(
       {
         message(r)
-        a <- lapply(self$exposure_ids, function(id) {
-          message(id)
-          ieugwasr::associations(r, id) %>%
-            dplyr::arrange(position) %>%
-            generate_vid() %>%
-            dplyr::filter(!duplicated(rsid))
+        a <- ieugwasr::associations(r, self$exposure_ids) %>%
+          dplyr::arrange(position) %>%
+          generate_vid()
+        message(nrow(a))
+        a <- lapply(self$exposure_ids, function(i) {
+          subset(a, id == i) %>%
+          dplyr::filter(!duplicated(rsid))
         })
 
         # subset to keep only the same SNPs across datasets
@@ -112,7 +114,7 @@ CAMERA$set("public", "extract_instrument_regions", function(radius = self$radius
       }
     )
   })
-  names(self$instrument_regions) <- unique(instrument_raw$rsid)
+  names(self$instrument_regions) <- temp$rsid
 })
 
 

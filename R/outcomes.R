@@ -13,7 +13,7 @@ CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_
   rsids <- unique(exp$rsido)
   out <- TwoSampleMR::extract_outcome_data(snps = rsids, outcomes = self$outcome_ids) %>%
     generate_vid(., ea = "effect_allele.outcome", nea = "other_allele.outcome", eaf = "eaf.outcome", beta = "beta.outcome", rsid = "SNP", chr = "chr", position = "pos")
-  print(head(out))
+  print(str(out))
   suppressMessages(out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>%
     # dplyr::select(rsid=SNP, chr, position=pos, id=id.outcome, beta=beta.outcome, se=se.outcome, p=pval.exposure, ea=effect_allele.outcome, nea=other_allele.outcome, eaf=eaf.outcome, units=units.outcome, samplesize=contains("size")) %>%
     as.data.frame())
@@ -27,7 +27,7 @@ CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_
 #' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
 #' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
 #' @return Data frame in x$harmonised_dat_sem
-CAMERA$set("public", "harmonised_dat", function(exp = self$instrument_raw, out = self$instrument_outcome) {
+CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw, out = self$instrument_outcome) {
   dx <- dplyr::inner_join(
     subset(exp, id == self$exposure_ids[[1]]),
     subset(exp, id == self$exposure_ids[[2]]),
@@ -43,3 +43,32 @@ CAMERA$set("public", "harmonised_dat", function(exp = self$instrument_raw, out =
   dat <- dplyr::inner_join(dx, dy, by = "SNP")
   self$harmonised_dat_sem <- dat
 })
+
+
+CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self$instrument_outcome) {
+  exp <- dplyr::left_join(exp, subset(self$summary, select=c(exposure_ids, pops)), by=c("id"="exposure_ids")) %>%
+    dplyr::select(SNP = rsid, pops, beta, se)
+  out <- dplyr::left_join(out, subset(self$summary, select=c(outcome_ids, pops)), by=c("id.outcome" = "outcome_ids")) %>%
+    dplyr::select(SNP, pops, beta=beta.outcome, se=se.outcome)
+  print(str(exp))
+  print(str(out))
+  dat <- dplyr::inner_join(exp, out, by=c("pops", "SNP"))
+  self$harmonised_dat <- dat
+  print(str(dat))
+})
+
+
+CAMERA$set("public", "set_summary", function() {
+  self$summary <- dplyr::tibble(
+    pops = self$pops,
+    exposure_ids = self$exposure_ids,
+    outcome_ids = self$outcome_ids
+  )
+  print(self$summary)
+})
+
+
+
+
+
+

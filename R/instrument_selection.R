@@ -7,7 +7,7 @@
 #'
 #' @return list of meta analysis betas and SEs
 #' @export
-fixed_effects_meta_analysis <- function(beta_mat, se_mat) {
+fixed_effects_meta_analysis_fast <- function(beta_mat, se_mat) {
   w <- 1 / se_mat^2
   beta <- rowSums(beta_mat * w) / rowSums(w)
   se <- sqrt(1 / rowSums(w))

@@ -1,8 +1,8 @@
 ---
-title: "tutorial"
+title: "Tutorial"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{tutorial}
+  %\VignetteIndexEntry{Tutorial}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -19,7 +19,10 @@ library(CAMERA)
 ```
 
 
-
+overview
+- initialise with traits to be analysed
+- check the scale of those phenotypes
+- extract instruments
 
 BMI on CHD
 
@@ -45,7 +48,7 @@ x$check_phenotypes(ids=x$exposure_ids)
 
 ```{r}
 x$extract_instruments()
-head(x$instrument_raw)
+str(x$instrument_raw)
 ```
 
 
@@ -56,24 +59,63 @@ x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
 
 
 ```{r}
-y$make_outcome_data()
+x$make_outcome_data()
 ```
 
 ```{r}
+load("bmi_regions.rdata")
 load_all()
 x <- y
 y <- CAMERA$new()
-y$make_outcome_data
 y$import(x)
-y$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
-y$instrument_specificity_summary %>% as.data.frame
+y$set_summary()
+y$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni") %>% as.data.frame
 y$instrument_specificity$distinct %>% table
+y$harmonised_dat(exp=y$instrument_raw, out=y$instrument_outcome)
+y$harmonise()
+head(y$harmonised_dat_sem)
+dim(y$harmonised_dat_sem)
+head(y$harmonised_dat)
+dim(y$harmonised_dat)
+y$cross_estimate()
+y$plot_cross_estimate()
 ```
 
 ```{r}
 y$extract_instrument_regions()
-x$regional_ld_matrices()
+save(y, file="bmi_regions.rdata")
+y$regional_ld_matrices()
+```
+
+```{r}
+y$perform_basic_sem()
 ```
 
 
+Perform Interaction model
 
+Perform GxE for outliers
+
+
+Data construction
+
+gx=instruments for each X
+gx1 = gx from all X
+
+gy=instruments for each y
+gy1 = g1 from all Y
+
+gx_regions = regions around each X instrument
+
+
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```

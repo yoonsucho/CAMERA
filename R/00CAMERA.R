@@ -37,10 +37,13 @@ CAMERA <- R6::R6Class("CAMERA", list(
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
   harmonised_dat_sem = NULL,
+  harmonised_dat = NULL,
   sem_result = NULL,
   pleiotropic_snps = NULL,
   pleiotropy_dat = NULL,
   instrument_pleiotropy_summary = NULL,
+  summary = NULL,
+  mrres = NULL,
 
   # for convenience can migrate the results from a previous CAMERA into this one
   #' @description

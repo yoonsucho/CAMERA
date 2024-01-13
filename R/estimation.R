@@ -1,127 +1,67 @@
 #' @description
-#' Perform basic SEM analysis of the joint estimates in multiple ancestries.
-#' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
-#' @return Table of the SEM results. Summary of the results available in x$sem_result.
-CAMERA$set("public", "perform_basic_sem", function(harmonised_dat = self$harmonised_dat_sem) {
-  d <- harmonised_dat %>%
-    dplyr::mutate(r1 = y1 / x1) %>%
-    dplyr::mutate(r2 = y2 / x2) %>%
-    dplyr::mutate(w1 = sqrt(x1^2 / yse1^2)) %>%
-    dplyr::mutate(w2 = sqrt(x2^2 / yse2^2)) %>%
-    dplyr::mutate(o1 = r1 * w1) %>%
-    dplyr::mutate(o2 = r2 * w2)
+#' Perform interaction IVW analysis and global analysis, with model comparison 
+CAMERA$set("public", "cross_estimate", function(dat=self$harmonised_dat) {
+  mod1 <- lm(beta.y ~ -1 + beta.x, data=dat, weight=1/dat$se.y^2)
+  mod2 <- lm(beta.y ~ -1 + beta.x:as.factor(pops), data=dat, weight=1/dat$se.y^2)
+  smod1 <- summary(mod1)
+  smod2 <- summary(mod2)
+  modcomp <- anova(mod1, mod2)
 
-  out <- list()
-  out$ivw1 <- TwoSampleMR::mr_ivw(d$x1, d$y1, d$xse1, d$yse1) %>%
-    {tibble::tibble(Methods = "IVW", pop = "1", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)}
-  out$ivw2 <- TwoSampleMR::mr_ivw(d$x2, d$y2, d$xse2, d$yse2) %>%
-    {tibble::tibble(Methods = "IVW", pop = "2", nsnp = nrow(d), bivhat = .$b, se = .$se, pval = .$pval)}
-  out$rm1 <- summary(lm(o1 ~ -1 + w1, data = d)) %>%
-    {tibble::tibble(Methods = "RadialIVW", pop = "1", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])}
-  out$rm2 <- summary(lm(o2 ~ -1 + w2, data = d)) %>%
-    {tibble::tibble(Methods = "RadialIVW", pop = "2", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])}
-
-  out$semA <- private$runsem("
-                                y1 ~ biv*x1
-                                y2 ~ biv*x2
-                                ", d, "UnweightedSEMa")[1, ] %>%
-    dplyr::mutate(pop = replace(pop, pop == 1, "1=2"))
-
-  out$semB <- private$runsem("
-                                y1 ~ biv_1*x1
-                                y2 ~ biv_2*x2
-                                ", d, "UnweightedSEMb")
-
-  out$modC <- private$runsem("
-                                o1 ~ biv*w1
-                                o2 ~ biv*w2
-                                ", d, "RadialSEMa")[1, ] %>%
-    dplyr::mutate(pop = replace(pop, pop == 1, "1=2"))
-
-  out$modD <- private$runsem("
-                                o1 ~ biv_1*w1
-                                o2 ~ biv_2*w2
-                                ", d, "RadialSEMb")
-
-  invisible(self$sem_result <- out %>% dplyr::bind_rows())
-  print(self$sem_result)
-})
-
-
-#' @importFrom tibble tibble
-#' @importFrom lavaan sem
-#' @importFrom dplyr mutate
-CAMERA$set("public", "runsem", function(model, data, modname) {
-  mod <- lavaan::sem(model, data = data)
-  invisible(capture.output(mod <- lavaan::summary(mod, fit.measures = TRUE)))
-  o <- tibble::tibble(
-    Methods = modname,
-    pop = 1:2,
-    nsnp = nrow(data),
-    bivhat = mod$PE$est[1:2],
-    se = mod$PE$se[1:2],
-    pval = mod$PE$pvalue[1:2],
-    aic = mod$FIT["aic"]
-  ) %>% dplyr::mutate(pop = as.character(pop))
-
-  if (is.na(o$se)) {
-    message("WARNING: The model convergence was not successful. No constraints were used.")
-    mod <- lavaan::sem(model, data = data, check.gradient = FALSE)
-    invisible(capture.output(mod <- lavaan::summary(mod, fit.measures = TRUE)))
-    o <- tibble::tibble(
-      Methods = modname,
-      pop = 1:2,
-      nsnp = nrow(data),
-      bivhat = mod$PE$est[1:2],
-      se = mod$PE$se[1:2],
-      pval = mod$PE$pvalue[1:2],
-      aic = mod$FIT["aic"]
-    ) %>% dplyr::mutate(pop = as.character(pop))
-  }
-  return(o)
-})
-
-
-CAMERA$set("private", "jackknife2", function(x, theta, ...) {
-  call <- match.call()
-  n <- length(x)
-  u <- rep(0, n)
-  for (i in 1:n) {
-    u[i] <- theta(x[-i], ...)
-  }
-  thetahat <- theta(x, ...)
-  jack.bias <- (n - 1) * (mean(u) - thetahat)
-  jack.se <- sqrt(((n - 1) / n) * sum((u - mean(u))^2))
-  jack.sd <- sqrt((1 / n) * sum((u - mean(u))^2))
-  return(list(
-    jack.se = jack.se, jack.sd = jack.sd, jack.bias = jack.bias, jack.values = u,
-    call = call
-  ))
-})
-
-
-#' @importFrom tibble tibble
-CAMERA$set("private", "bootstrap_diff", function(nboot, slope, slope_se, b_out, b_out_se, b_exp, b_exp_se) {
-  expected_b_out <- b_exp * slope
-  diff <- b_out - expected_b_out
-
-  # bootstrap to get diff_se
-  boots <- tibble::tibble(
-    B_EXP = rnorm(nboot, mean = b_exp, sd = b_exp_se),
-    B_OUT = rnorm(nboot, mean = b_out, sd = b_out_se),
-    SLOPE = rnorm(nboot, mean = slope, sd = slope_se),
-    DIFF = B_OUT - B_EXP * SLOPE
+  res <- list()
+  res$coefficients <- dplyr::bind_rows(
+    smod1$coefficients %>% dplyr::as_tibble() %>% dplyr::mutate(pops="All"),
+    smod2$coefficients %>% dplyr::as_tibble() %>% dplyr::mutate(pops=levels(as.factor(dat$pops)))
+  ) %>%
+    dplyr::select(pops, dplyr::everything())
+  # res$pdiff <- modcomp
+  heterogeneity <- fixed_effects_meta_analysis(res$coefficients$Estimate[-1], res$coefficients$`Std. Error`[-1])
+  heterogeneity$Qj <- dplyr::tibble(
+    pops = res$coefficients$pops[-1],
+    Qj = heterogeneity$Qj,
+    Qjpval = heterogeneity$Qjpval
   )
-  diff_se <- sd(boots$DIFF)
-  return(list(
-    diff = diff,
-    diff_se = diff_se
-  ))
+  heterogeneity <- heterogeneity[names(heterogeneity) != "Qjpval"]
+  res$coefficients <- dplyr::left_join(res$coefficients, heterogeneity$Qj, by="pops")
+  res$coefficients$Qdf <- 1
+  res$coefficients$Qj[res$coefficients$pops=="All"] <- heterogeneity$Q
+  res$coefficients$Qjpval[res$coefficients$pops=="All"] <- heterogeneity$Qpval
+  res$coefficients$Qdf[res$coefficients$pops=="All"] <- heterogeneity$Qdf
+  self$mrres <- res
+  return(self$mrres)
 })
 
 
-CAMERA$set("private", "bootstrap", function(wr, wr.se, ivw, ivw.se, nboot = 1000) {
-  res <- rnorm(nboot, wr, wr.se) - rnorm(nboot, ivw, ivw.se)
-  pe <- wr - ivw
-  return(c(pleio = pe, sd = sd(res)))
+CAMERA$set("public", "plot_cross_estimate", function(res=self$mrres, qj_alpha=0.05) {
+  est <- res$coefficients
+  est$what <- "Pops"
+  est$what[est$pops=="All"] <- "All"
+  p <- ggplot2::ggplot(est, ggplot2::aes(x=Estimate, y=pops)) +
+  ggplot2::geom_point(ggplot2::aes(colour=Qjpval < qj_alpha)) +
+  ggplot2::geom_errorbarh(ggplot2::aes(colour=Qjpval < qj_alpha, xmin=Estimate - 1.96 * `Std. Error`, xmax=Estimate + 1.96 * `Std. Error`), height=0.1) +
+  ggplot2::facet_grid(what ~ ., scale="free_y", space="free_y") +
+  ggplot2::geom_vline(xintercept=0, linetype="dotted") +
+  ggplot2::labs(y="", colour=paste0("Heterogeneity\npval < ", qj_alpha))
+  return(p)
 })
+
+#' Perform fixed effects meta analysis for one association
+#' 
+#' @param beta_vec
+#' @param se_vec
+#' 
+#' @return list of results
+fixed_effects_meta_analysis <- function(beta_vec, se_vec) {
+    w <- 1 / se_vec^2
+    beta <- sum(beta_vec * w, na.rm=T) / sum(w, na.rm=T)
+    se <- sqrt(1 / sum(w, na.rm=T))
+    pval <- pnorm(abs(beta / se), lower.tail = FALSE)
+    Qj <- w * (beta-beta_vec)^2
+    Q <- sum(Qj, na.rm=T)
+    Qdf <- sum(!is.na(beta_vec))-1
+    if(Qdf == 0) Q <- 0
+    Qjpval <- pchisq(Qj, 1, lower.tail=FALSE)
+    Qpval <- pchisq(Q, Qdf, lower.tail=FALSE)
+    return(list(beta=beta, se=se, Q=Q, Qdf=Qdf, Qpval=Qpval, Qj=Qj, Qjpval=Qjpval))
+}
+
+
