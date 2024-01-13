@@ -44,6 +44,8 @@ CAMERA <- R6::R6Class("CAMERA", list(
   instrument_pleiotropy_summary = NULL,
   summary = NULL,
   mrres = NULL,
+  instrument_heterogeneity_per_variant = NULL,
+  mrgxe_res = NULL,
 
   # for convenience can migrate the results from a previous CAMERA into this one
   #' @description

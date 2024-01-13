@@ -71,7 +71,8 @@ y$import(x)
 y$set_summary()
 y$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni") %>% as.data.frame
 y$instrument_specificity$distinct %>% table
-y$harmonised_dat(exp=y$instrument_raw, out=y$instrument_outcome)
+y$instrument_heterogeneity()
+# y$harmonised_dat(exp=y$instrument_raw, out=y$instrument_outcome)
 y$harmonise()
 head(y$harmonised_dat_sem)
 dim(y$harmonised_dat_sem)
@@ -79,6 +80,27 @@ head(y$harmonised_dat)
 dim(y$harmonised_dat)
 y$cross_estimate()
 y$plot_cross_estimate()
+
+
+y$estimate_instrument_heterogeneity_per_variant()
+y
+
+table(y$instrument_heterogeneity_per_variant$Qpval < 0.05)
+table(p.adjust(y$instrument_heterogeneity_per_variant$Qpval, "fdr") < 0.05)
+
+y$mrgxe()
+y$mrgxe_plot()
+
+
+y$mrgxe_res
+hist(y$mrgxe_res$a)
+hist(y$mrgxe_res$b)
+
+
+instrument_heterogeneity(y$harmonised_dat)
+
+
+
 ```
 
 ```{r}
