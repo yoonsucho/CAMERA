@@ -1,5 +1,18 @@
-#' @importFrom tibble tibble
-CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, alpha) {
+#' Estimate expected vs observed replication of effects between discovery and replication datasets
+#' 
+#' Taken from Okbay et al 2016. Under the assumption that all discovery effects are unbiased, what fraction of associations would replicate in the replication dataset, given the differential power of the discovery and replication datasets.
+#' Uses standard error of the replication dataset to account for differences in sample size and distribution of independent variable
+#' 
+#' @param b_disc Vector of discovery betas
+#' @param b_rep Vector of replication betas
+#' @param se_disc Vector of discovery standard errors
+#' @param se_rep Vector of replication standard errors
+#' @param alpha Nominal replication significance threshold
+#' 
+#' @return List of results
+#' - res: aggregate expected replication rate vs observed replication rate
+#' - variants: per variant expected replication rates
+prop_overlap <- function(b_disc, b_rep, se_disc, se_rep, alpha) {
   p_sign <- pnorm(-abs(b_disc) / se_disc) * pnorm(-abs(b_disc) / se_rep) + ((1 - pnorm(-abs(b_disc) / se_disc)) * (1 - pnorm(-abs(b_disc) / se_rep)))
   p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) + (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
   p_rep <- pnorm(abs(b_rep) / se_rep, lower.tail = FALSE)
@@ -9,9 +22,8 @@ CAMERA$set("private", "prop_overlap", function(b_disc, b_rep, se_disc, se_rep, a
     datum = c("Expected", "Observed", "Expected", "Observed"),
     value = c(sum(p_sign, na.rm = TRUE), sum(sign(b_disc) == sign(b_rep)), sum(p_sig, na.rm = TRUE), sum(p_rep < alpha, na.rm = TRUE))
   )
-  return(list(res = res, variants = dplyr::tibble(sig = p_sig, sign = p_sign)))
-})
-
+  return(list(res = res, variants = dplyr::tibble(sig = p_sig, sign = p_sign, )))
+}
 
 #' @description
 #' The function evaluates heterogeneity in the association of selected instruments and the exposure/outcome between the populations. Heterogeneity (Q statistics) is calcuated based on an IVW or simple MODE MR estimator. The instruments can be identified using "Raw", "MaxZ", or fine-mapping (Susie, PAINTOR) methods.
@@ -38,8 +50,7 @@ CAMERA$set("public", "instrument_heterogeneity", function(instrument = self$inst
     if (outliers[1] != "No significant outliers") {
       outliers <- outliers$SNP
       instrument <- subset(instrument, !rsid %in% outliers)
-    }
-    if (outliers[1] == "No significant outliers") {
+    } else {
       print("No significant outliers")
     }
   }
@@ -159,7 +170,7 @@ CAMERA$set("public", "estimate_instrument_specificity", function(instrument, alp
       temp <- dplyr::inner_join(m, other, by = "rsid")
       o <- other %>%
         {
-          private$prop_overlap(temp$beta.x, temp$beta.y, temp$se.x, temp$se.y, alpha)
+          prop_overlap(temp$beta.x, temp$beta.y, temp$se.x, temp$se.y, alpha)
         }
       o$res <- o$res %>%
         dplyr::mutate(discovery = i, replication = j) %>%
@@ -187,9 +198,8 @@ CAMERA$set("public", "estimate_instrument_specificity", function(instrument, alp
   self$instrument_specificity_summary <- lapply(o, function(x) x$overall) %>%
     dplyr::bind_rows() %>%
     dplyr::filter(nsnp > 0)
-  print(head(self$instrument_specificity_summary))
   self$instrument_specificity <- lapply(o, function(x) x$pervariant) %>% dplyr::bind_rows()
-  return(self$instrument_specificity_summary)
+  return(self$instrument_specificity_summary %>% as.data.frame())
 })
 
 #' @description
