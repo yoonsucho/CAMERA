@@ -53,11 +53,15 @@ CAMERA$set("public", "estimate_instrument_heterogeneity_per_variant", function(d
 #' - b_mean = mean value of slope estimates from bootstraps
 #' 
 #' @export
-mrgxe_1 <- function(b_gx, se_gx, b_gy, se_gy, nboot=1000) {
+egger_bootstrap <- function(b_gx, se_gx, b_gy, se_gy, nboot=1000) {
     npop <- length(b_gx)
     stopifnot(length(se_gx) == npop)
     stopifnot(length(b_gy) == npop)
     stopifnot(length(se_gy) == npop)
+
+    ind <- b_gx[b_gx < 0]
+    b_gx[ind] <- b_gx[ind] * -1
+    b_gy[ind] <- b_gy[ind] * -1
 
     mod <- summary(lm(b_gy ~ b_gx))
     
@@ -88,7 +92,7 @@ CAMERA$set("public", "mrgxe", function(dat = self$harmonised_dat, variant_list =
         dplyr::filter(SNP %in% variant_list) %>%
         dplyr::group_by(SNP) %>%
         dplyr::do({
-            mrgxe_1(.$beta.x, .$se.x, .$beta.y, .$se.y, nboot) %>%
+            egger_bootstrap(.$beta.x, .$se.x, .$beta.y, .$se.y, nboot) %>%
                 mutate(SNP=.$SNP[1])
         })
     return(self$mrgxe_res)
@@ -102,7 +106,7 @@ CAMERA$set("public", "mrgxe_plot", function(mrgxe_res = self$mrgxe_res) {
             ggplot2::geom_point() +
             ggplot2::geom_errorbarh(ggplot2::aes(xmin=a-1.96*a_se, xmax=a+1.96*a_se), height=0) +
             ggplot2::geom_vline(xintercept=0, linetype="dotted") +
-            ggplot2::scale_y_discrete(limits=arrange(y$mrgxe_res, a)$SNP)
+            ggplot2::scale_y_discrete(limits=arrange(mrgxe_res, a)$SNP)
 })
 
 
