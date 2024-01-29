@@ -184,7 +184,7 @@ CAMERA$set("public", "scan_regional_instruments", function(instrument_raw = self
 #' @param comparison Use this option to compare the selected instruments by different instrument selection methods in one plot.
 #' @return Plot
 #' @importFrom ggplot2 ggplot aes geom_point facet_grid geom_smooth scale_colour_brewer scale_x_log10 scale_y_log10 xlab ylab
-CAMERA$set("public", "plot_regional_instruments", function(instrument_region_zscores = self$instrument_region_zscores, instruments = self$instrument_raw, region = 1:min(10, nrow(instruments)), comparison = FALSE) {
+CAMERA$set("public", "plot_regional_instruments_maxz", function(instrument_region_zscores = self$instrument_region_zscores, instruments = self$instrument_raw, region = 1:min(10, nrow(instruments)), comparison = FALSE) {
   a <- instrument_region_zscores[region]
   a <- names(a) %>%
     lapply(., function(n) {

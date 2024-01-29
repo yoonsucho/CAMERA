@@ -9,10 +9,12 @@
 #' @export
 fixed_effects_meta_analysis_fast <- function(beta_mat, se_mat) {
   w <- 1 / se_mat^2
-  beta <- rowSums(beta_mat * w) / rowSums(w)
-  se <- sqrt(1 / rowSums(w))
-  pval <- pnorm(abs(beta / se), lower.tail = FALSE)
-  return(pval)
+  beta <- rowSums(beta_mat * w) / rowSums(w, na.rm=TRUE)
+  se <- sqrt(1 / rowSums(w, na.rm=TRUE))
+  z <- abs(beta / se)
+  p <- pnorm(z, lower.tail = FALSE)
+  nstudy <- apply(beta_mat, 1, \(x) sum(!is.na(x)))
+  return(tibble(nstudy, p, z=z))
 }
 
 #' P-value based meta analysis
@@ -28,20 +30,84 @@ fixed_effects_meta_analysis_fast <- function(beta_mat, se_mat) {
 #' @param n Vector of sample sizes for each
 #' @param eaf_mat Matrix of allele frequencies - rows are SNPs, columns are studies
 z_meta_analysis <- function(beta_mat, se_mat, n, eaf_mat) {
-  z_mat <- beta_mat / se_mat
+  z_mat <- abs(beta_mat) / se_mat
   w_mat <- t(t(sqrt(eaf_mat * (1 - eaf_mat) * 2)) * sqrt(n))
-  zw <- rowSums(z_mat * w_mat) / sqrt(rowSums(w_mat^2))
-  pval <- qnorm(abs(zw), lower.tail = FALSE)
-  return(pval)
+  zw <- rowSums(z_mat * w_mat, na.rm=TRUE) / sqrt(rowSums(w_mat^2, na.rm=TRUE))
+  p <- pnorm(abs(zw), lower.tail = FALSE)
+  nstudy <- apply(beta_mat, 1, \(x) sum(!is.na(x)))
+  return(tibble(nstudy, p, z=abs(zw)))
 }
 
 
-
-fema_regional_instruments <- function(instrument_regions = self$instrument_regions, instrument_raw = self$instrument_raw) {
+CAMERA$set("public", "fema_regional_instruments", function(method = "fema", instrument_regions = self$instrument_regions, instrument_raw = self$instrument_raw, n=self$exposure_metadata$sample_size) {
+  
+  stopifnot(method %in% c("fema", "zma"))
+  if(method == "zma") {
+    stopifnot(!is.null(n))
+    stopifnot(all(!is.na(n)))
+  }
+  
   # remove regions that have no data
   rem <- lengths(instrument_regions) == 0
   if (any(rem)) {
     message(sum(rem), " regions have no data")
     instrument_regions <- instrument_regions[!rem]
   }
-}
+
+  # for every region, create mats, do scan
+  d <- lapply(instrument_regions, \(x) {
+    if(is.null(x)) return(NULL)
+    if(nrow(x[[1]]) == 0) return(NULL)
+      d <- dplyr::select(x[[1]], chr, position, rsid, ea, nea, rsido, trait)
+      
+      if(method == "fema") {
+        d1 <- fixed_effects_meta_analysis_fast(
+          sapply(x, \(y) y$beta),
+          sapply(x, \(y) y$se)
+        )
+      } else {
+        d1 <- z_meta_analysis(
+          sapply(x, \(y) y$beta),
+          sapply(x, \(y) y$se),
+          n,
+          sapply(x, \(y) y$eaf)
+        )
+      }
+      d <- bind_cols(d, d1)
+  })
+
+  # Keep best SNP from each region
+  names(d) <- names(instrument_regions)
+  d <- Filter(Negate(is.null), d)
+  dsel <- lapply(d, \(x) {
+    subset(x, z == max(x$z, na.rm=TRUE))[1,]
+  }) %>% bind_rows()
+  dsel$region <- names(d)
+  # Extract best SNPs from regions for each pop
+  inst <- lapply(1:nrow(dsel), \(i) {
+    lapply(instrument_regions[[dsel$region[i]]], \(p) {
+      subset(p, rsid == dsel$rsid[i])
+    }) %>% bind_rows() %>% mutate(id=names(instrument_regions[[dsel$region[i]]]))
+  }) %>% bind_rows() %>%
+    filter(!duplicated(paste(id, rsid)))
+  self$instrument_fema <- inst
+  self$instrument_fema_regions <- d
+  return(inst)
+})
+
+
+CAMERA$set("public", "plot_regional_instruments", function(region, instrument_regions=self$instrument_regions, meta_analysis_regions=self$instrument_fema_regions) {
+  r <- instrument_regions[[region]]
+  d <- meta_analysis_regions[[region]]
+  r <- lapply(r, \(y) y %>% mutate(z=abs(beta)/se))
+  r$fema <- d
+  temp <- lapply(names(r), \(y) r[[y]] %>% dplyr::mutate(pop = y)) %>% dplyr::bind_rows() %>% dplyr::select(position, z, p, pop)
+  th <- temp %>% group_by(pop) %>% arrange(desc(z)) %>% slice_head(n=1) %>% ungroup()
+  thf <- subset(temp, position==subset(th, pop=="fema")$position)
+  ggplot(temp, aes(x=position, y=-log10(p))) +
+    geom_point() +
+    geom_point(data=th, colour="red") +
+    geom_point(data=thf, colour="blue") +
+    facet_grid(pop ~ ., scale="free_y")
+})
+

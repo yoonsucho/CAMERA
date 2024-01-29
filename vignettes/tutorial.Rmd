@@ -55,31 +55,116 @@ str(x$instrument_raw)
 ```{r}
 x$instrument_heterogeneity(x$instrument_raw)
 x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
+x$instrument_specificity$distinct %>% table
 ```
 
 
 ```{r}
 x$make_outcome_data()
+x$harmonise()
+x$cross_estimate()
 ```
+
+```{r}
+x$plot_cross_estimate()
+```
+
+## Re-select instruments
+
+We can re-select the instruments scanning across the region. The intention here is to allow all populations to contribute to a fixed effects meta analysis to account for LD. Then the top variant in the region from the meta analysis is used as the instrument for all populations.
+
+```{r}
+x$extract_instrument_regions()
+x$fema_regional_instruments() %>% str()
+```
+
+Evaluate instrument specificity. First using heterogeneity
+
+```{r}
+x$instrument_heterogeneity(x$instrument_fema)
+```
+
+Compared to above the `agreement` regression slopes are much closer to 1 for all ancestries.
+
+```{r}
+x$estimate_instrument_specificity(x$instrument_fema, alpha = "bonferroni")
+x$instrument_specificity$distinct %>% table
+```
+
+The number of apparently distinct instruments is reduced also.
+
+## Attempt to re-scale instrument associations
+
+```{r}
+x1 <- x
+x$standardise_data()
+x$instrument_heterogeneity(x$instrument_raw)
+x1$instrument_heterogeneity(x1$instrument_raw)
+```
+
+```{r}
+x$make_outcome_data(exp=x$instrument_fema)
+x$harmonise()
+x$cross_estimate()
+x$plot_cross_estimate()
+```
+
+## Pleiotropy
+
+```{r}
+x$pleiotropy()
+```
+
+## MR GxE
+
+```{r}
+x$estimate_instrument_heterogeneity_per_variant()
+```
+
+```{r}
+x$mrgxe()
+x$mrgxe_res
+x$mrgxe_plot()
+```
+
 
 ```{r}
 load("bmi_regions.rdata")
 load_all()
-x <- y
+x1 <- x
 y <- CAMERA$new()
 y$import(x)
+y$get_metadata()
 y$set_summary()
-y$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni") %>% as.data.frame
+y$estimate_instrument_specificity(y$instrument_raw, alpha = "bonferroni") %>% as.data.frame
 y$instrument_specificity$distinct %>% table
-y$instrument_heterogeneity()
+
+y$fema_regional_instruments()
+y$estimate_instrument_specificity(y$instrument_fema, alpha = "bonferroni") %>% as.data.frame
+y$instrument_specificity$distinct %>% table
+
+
+y$instrument_heterogeneity(y$instrument_fema)
+y$instrument_heterogeneity(y$instrument_raw)
 # y$harmonised_dat(exp=y$instrument_raw, out=y$instrument_outcome)
 y$harmonise()
+
 head(y$harmonised_dat_sem)
 dim(y$harmonised_dat_sem)
 head(y$harmonised_dat)
 dim(y$harmonised_dat)
 y$cross_estimate()
 y$plot_cross_estimate()
+
+
+y$fema_regional_instruments()
+y$plot_regional_instruments(1)
+y$estimate_instrument_specificity(y$instrument_fema, alpha = "bonferroni") %>% as.data.frame
+y$estimate_instrument_specificity(y$instrument_raw, alpha = "bonferroni") %>% as.data.frame
+
+
+
+
 
 
 y$estimate_instrument_heterogeneity_per_variant()
@@ -135,9 +220,93 @@ gx_regions = regions around each X instrument
 
 ```{r}
 
+a <- y$zma_regional_instruments()
+b <- y$fema_regional_instruments()
+
+bind_rows(a[[3]] %>% mutate(what="zma"), b[[3]] %>% mutate(what="fema")) %>% ggplot(., aes(x=position, y=-log10(p))) + geom_point(aes(colour=what))
+
+
+r <- x$instrument_regions[[10]]
+d <- a[[10]]
+plot_regions_fema <- function(r, d) {
+  r <- lapply(r, \(y) y %>% mutate(z=abs(beta)/se))
+  r$fema <- d
+  temp <- lapply(names(r), \(y) r[[y]] %>% dplyr::mutate(pop = y)) %>% dplyr::bind_rows() %>% dplyr::select(position, z, p, pop)
+  th <- temp %>% group_by(pop) %>% arrange(desc(z)) %>% slice_head(n=1) %>% ungroup()
+  thf <- subset(temp, position==subset(th, pop=="fema")$position)
+  ggplot(temp, aes(x=position, y=-log10(p))) +
+  geom_point() +
+  geom_point(data=th, colour="red") +
+  geom_point(data=thf, colour="blue") +
+  facet_grid(pop ~ ., scale="free_y")
+
+  ggplot(temp, aes(x=position, y=-log10(p))) +
+  ggplot2::geom_line(aes(group=as.factor(position)), colour="grey") +
+  ggplot2::geom_point(aes(colour=pop)) +
+  ggplot2::scale_colour_brewer(type="qual")
+}
+
+
 ```
 
 
 ```{r}
 
 ```
+
+
+Instrument extraction
+
+
+E_i = exposure GWAS for population i
+O_i = exposure GWAS for population i
+
+T(E_i)_j = Tophits variant j for GWAS E_i for population i
+
+T(E_i)_ij = Association in exposure GWAS for population i, for tophit variant j for population i
+
+Outcome tophit pool in all outcomes
+
+Exposure tophit pool in all exposures
+Exposure tophit pool in all outcomes
+Exposure region pool in all regions
+
+
+
+
+
+```{r}
+library(ieugwasr)
+select_api("private")
+
+rm(list=ls())
+load_all()
+y <- readRDS("~/x.rds")
+x <- CAMERA$new()
+x$import(y)
+
+x$extract_instruments()
+str(x$instrument_raw)
+
+x$instrument_heterogeneity(x$instrument_raw)
+x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
+
+
+
+x$check_phenotypes(ids=x$outcome_ids)
+
+
+
+x <- CAMERA$new(
+  exposure_ids=c("ukb-e-23104_CSA", "ukb-e-21001_AFR", "ukb-b-19953", "bbj-a-1"), 
+  outcome_ids=c("ukb-e-411_CSA", "ukb-e-411_AFR", "ieu-a-7", "bbj-a-109"), 
+  pops = c("SAS", "AFR", "EUR", "EAS"),
+  bfiles=file.path("/Users/gh13047/repo/opengwas-api-internal/opengwas-api/app/ld_files", c("SAS", "AFR", "EUR", "EAS")),
+  plink = genetics.binaRies::get_plink_binary(), 		
+  radius=50000, 
+  clump_pop="EUR"
+)
+x
+saveRDS(x, file="~/x.rds")
+```
+
