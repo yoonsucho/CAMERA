@@ -46,13 +46,17 @@ CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw,
 
 
 CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self$instrument_outcome) {
-  exp <- dplyr::left_join(exp, subset(self$summary, select=c(exposure_ids, pops)), by=c("id"="exposure_ids")) %>%
-    dplyr::select(SNP = rsid, pops, beta, se)
-  out <- dplyr::left_join(out, subset(self$summary, select=c(outcome_ids, pops)), by=c("id.outcome" = "outcome_ids")) %>%
-    dplyr::select(SNP, pops, beta=beta.outcome, se=se.outcome)
-  print(str(exp))
-  print(str(out))
-  dat <- dplyr::inner_join(exp, out, by=c("pops", "SNP"))
+  if(self$source == "OpenGWAS") {
+    exp <- dplyr::left_join(exp, subset(self$summary, select=c(exposure_ids, pops)), by=c("id"="exposure_ids")) %>%
+      dplyr::select(SNP = rsid, pops, beta, se)
+    out <- dplyr::left_join(out, subset(self$summary, select=c(outcome_ids, pops)), by=c("id.outcome" = "outcome_ids")) %>%
+      dplyr::select(SNP, pops, beta=beta.outcome, se=se.outcome)
+    print(str(exp))
+    print(str(out))
+    dat <- dplyr::inner_join(exp, out, by=c("pops", "SNP"))
+  } else {
+    dat <- inner_join(exp, out, by=c("pop", "rsid")) %>% rename(pops="pop", SNP="rsid")
+  }
   self$harmonised_dat <- dat
   print(str(dat))
 })
@@ -62,13 +66,10 @@ CAMERA$set("public", "set_summary", function() {
   self$summary <- dplyr::tibble(
     pops = self$pops,
     exposure_ids = self$exposure_ids,
-    outcome_ids = self$outcome_ids
+    outcome_ids = self$outcome_ids,
+    source=self$source
   )
   print(self$summary)
 })
-
-
-
-
 
 

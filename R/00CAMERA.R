@@ -7,6 +7,7 @@
 
 CAMERA <- R6::R6Class("CAMERA", list(
   output = list(),
+  source = NULL,
   exposure_ids = NULL,
   outcome_ids = NULL,
   exposure_metadata = NULL,
@@ -40,6 +41,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
   instrument_specificity = NULL,
   instrument_specificity_summary = NULL,
   instrument_outcome = NULL,
+  instrument_outcome_regions = NULL,
   harmonised_dat_sem = NULL,
   harmonised_dat = NULL,
   sem_result = NULL,
@@ -65,6 +67,27 @@ CAMERA <- R6::R6Class("CAMERA", list(
     }
   },
 
+  assign = function(...) {
+    l <- list(...)
+    lapply(names(l), \(n) {
+      message("Assigning ", n)
+      try(self[[n]] <- l[[n]])
+    })
+  },
+
+  import_from_local = function(instrument_raw, instrument_outcome, instrument_regions, instrument_outcome_regions, exposure_ids, outcome_ids, ...) {
+    self[["instrument_raw"]] <- instrument_raw %>% generate_vid()
+    self[["instrument_outcome"]] <- instrument_outcome  %>% generate_vid()
+    self[["instrument_regions"]] <- lapply(instrument_regions, \(x) lapply(x, generate_vid))
+    self[["instrument_outcome_regions"]] <- lapply(instrument_outcome_regions, \(x) lapply(x, generate_vid))
+    self[["exposure_ids"]] <- exposure_ids
+    self[["outcome_ids"]] <- outcome_ids
+    self$source <- "Local"
+    # Get instrument_outcome
+
+    self$assign(...)
+  },
+
   # Methods
   #' @description
   #' Create a new dataset and initialise an R interface
@@ -87,5 +110,6 @@ CAMERA <- R6::R6Class("CAMERA", list(
     self$plink <- plink
     self$radius <- radius
     self$clump_pop <- clump_pop
+    self$source <- "OpenGWAS"
   }
 ))

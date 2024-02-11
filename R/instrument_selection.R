@@ -58,11 +58,15 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
   d <- lapply(instrument_regions, \(x) {
     if(is.null(x)) return(NULL)
     if(nrow(x[[1]]) == 0) return(NULL)
-      d <- dplyr::select(x[[1]], chr, position, rsid, ea, nea, rsido, trait)
       
+      rsidintersect <- Reduce(intersect, lapply(x, \(r) r$rsid))
+      x <- lapply(x, \(r) r %>% filter(rsid %in% rsidintersect) %>% filter(!duplicated(rsid)) %>% arrange(rsid))
+      
+      d <- dplyr::select(x[[1]], chr, position, rsid, ea, nea, rsido, trait)
+
       if(method == "fema") {
         d1 <- fixed_effects_meta_analysis_fast(
-          sapply(x, \(y) y$beta),
+          sapply(x, \(y) y$beta), 
           sapply(x, \(y) y$se)
         )
       } else {
@@ -78,7 +82,8 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
 
   # Keep best SNP from each region
   names(d) <- names(instrument_regions)
-  d <- Filter(Negate(is.null), d)
+  d[sapply(x, is.null)] <- NULL
+  d[sapply(x, \(d) {nrow(d) == 0})] <- NULL
   dsel <- lapply(d, \(x) {
     subset(x, z == max(x$z, na.rm=TRUE))[1,]
   }) %>% bind_rows()
