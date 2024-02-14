@@ -60,7 +60,9 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
     if(nrow(x[[1]]) == 0) return(NULL)
       
       rsidintersect <- Reduce(intersect, lapply(x, \(r) r$rsid))
-      x <- lapply(x, \(r) r %>% filter(rsid %in% rsidintersect) %>% filter(!duplicated(rsid)) %>% arrange(rsid))
+      x <- lapply(x, \(r) {
+        r %>% dplyr::filter(rsid %in% rsidintersect) %>% dplyr::filter(!duplicated(rsid)) %>% dplyr::arrange(rsid)
+      })
       
       d <- dplyr::select(x[[1]], chr, position, rsid, ea, nea, rsido, trait)
 
@@ -77,24 +79,24 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
           sapply(x, \(y) y$eaf)
         )
       }
-      d <- bind_cols(d, d1)
+      d <- dplyr::bind_cols(d, d1)
   })
 
   # Keep best SNP from each region
   names(d) <- names(instrument_regions)
-  d[sapply(x, is.null)] <- NULL
-  d[sapply(x, \(d) {nrow(d) == 0})] <- NULL
+  d[sapply(d, is.null)] <- NULL
+  d[sapply(d, \(d1) {nrow(d1) == 0})] <- NULL
   dsel <- lapply(d, \(x) {
     subset(x, z == max(x$z, na.rm=TRUE))[1,]
-  }) %>% bind_rows()
+  }) %>% dplyr::bind_rows()
   dsel$region <- names(d)
   # Extract best SNPs from regions for each pop
   inst <- lapply(1:nrow(dsel), \(i) {
     lapply(instrument_regions[[dsel$region[i]]], \(p) {
       subset(p, rsid == dsel$rsid[i])
-    }) %>% bind_rows() %>% mutate(id=names(instrument_regions[[dsel$region[i]]]))
-  }) %>% bind_rows() %>%
-    filter(!duplicated(paste(id, rsid)))
+    }) %>% dplyr::bind_rows() %>% dplyr::mutate(id=names(instrument_regions[[dsel$region[i]]]))
+  }) %>% dplyr::bind_rows() %>%
+    dplyr::filter(!duplicated(paste(id, rsid)))
   self$instrument_fema <- inst
   self$instrument_fema_regions <- d
   return(inst)

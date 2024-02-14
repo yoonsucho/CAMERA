@@ -19,12 +19,27 @@ library(CAMERA)
 ```
 
 
-overview
-- initialise with traits to be analysed
-- check the scale of those phenotypes
-- extract instruments
+## Introduction
 
-BMI on CHD
+This software attempts to bring together various tools to improve cross-ancestry Mendelian randomisation. It will use an example of performing analysis of BMI on coronary heart disease across four major ancestral groups.
+
+Overview:
+
+- Initialise data
+- Check phenotype scales across ancestries
+- Extract instruments
+- Evaluate instrument heterogeneity across populations
+- Extract outcome data
+- Harmonise exposure and outcome data
+- Perform analysis using raw instruments
+- Perform regional scan to obtain LD agnostic instruments
+- Re-perform analysis using regional instruments
+- Evaluate similarity of pleiotropy across ancestry
+- Evaluate similarity of instrument-exposure associations
+- Use cross-population instrument-exposure heterogeneity in MR GxE framework to estimate pleiotropy distributions
+- Saving and loading data
+
+## Initialise data
 
 ```{r}
 bfile_dir <- "/Users/gh13047/repo/opengwas-api-internal/opengwas-api/app/ld_files"
@@ -40,28 +55,45 @@ x <- CAMERA$new(
 x
 ```
 
-Check phenotypes
+## Check phenotype scales across ancestries
 
 ```{r}
 x$check_phenotypes(ids=x$exposure_ids)
+x$check_phenotypes(ids=x$outcome_ids)
 ```
+
+## Extract instruments
 
 ```{r}
 x$extract_instruments()
 str(x$instrument_raw)
 ```
 
+## Evaluate instrument heterogeneity across populations
 
 ```{r}
-x$instrument_heterogeneity(x$instrument_raw)
-x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
-x$instrument_specificity$distinct %>% table
+x$instrument_heterogeneity()
 ```
 
+```{r}
+x$estimate_instrument_specificity(instrument=x$instrument_raw)
+```
+
+## Extract outcome data
 
 ```{r}
 x$make_outcome_data()
+```
+
+## Harmonise exposure and outcome data
+
+```{r}
 x$harmonise()
+```
+
+## Perform analysis using raw instruments
+
+```{r}
 x$cross_estimate()
 ```
 
@@ -69,13 +101,37 @@ x$cross_estimate()
 x$plot_cross_estimate()
 ```
 
-## Re-select instruments
+## Perform regional scan to obtain LD agnostic instruments
 
 We can re-select the instruments scanning across the region. The intention here is to allow all populations to contribute to a fixed effects meta analysis to account for LD. Then the top variant in the region from the meta analysis is used as the instrument for all populations.
 
-```{r}
+```{r, message=FALSE}
 x$extract_instrument_regions()
+```
+
+This has extracted regions around all the pooled instruments from each exposure dataset. Now we can use either fixed effects meta analysis within each region to choose the best SNP across all ancestries:
+
+```{r}
 x$fema_regional_instruments() %>% str()
+```
+
+or use a Z-score based meta analysis if you are unsure about whether the effect size scales are sufficiently consistent across the studies:
+
+```{r}
+x$get_metadata()
+x$fema_regional_instruments(method="zma") %>% str()
+```
+
+## Re-perform analysis using regional instruments
+
+```{r}
+x$make_outcome_data(exp=x$instrument_fema)
+x$harmonise()
+x$cross_estimate()
+```
+
+```{r}
+x$plot_cross_estimate()
 ```
 
 Evaluate instrument specificity. First using heterogeneity
@@ -93,7 +149,7 @@ x$instrument_specificity$distinct %>% table
 
 The number of apparently distinct instruments is reduced also.
 
-## Attempt to re-scale instrument associations
+## Attempt to re-scale instrument-exposure associations
 
 ```{r}
 x1 <- x
@@ -109,7 +165,7 @@ x$cross_estimate()
 x$plot_cross_estimate()
 ```
 
-## Pleiotropy
+## Evaluate similarity of pleiotropy across ancestry
 
 ```{r}
 x$pleiotropy()
@@ -125,6 +181,29 @@ x$estimate_instrument_heterogeneity_per_variant()
 x$mrgxe()
 x$mrgxe_res
 x$mrgxe_plot()
+```
+
+## Saving and loading data
+
+It can be useful to import data from one CAMERA object to another, because for example you may have all your data, but the CAMERA class has been updated, and you want to initialise a new class and import all the old data into the new class.
+
+Save CAMERA objects as RDS files e.g.
+
+```{r, eval=FALSE}
+saveRDS(x, file="example-CAMERA.rds")
+```
+
+And load them like this:
+
+```{r, eval=FALSE}
+x <- readRDS(file="example-CAMERA.rds")
+```
+
+You can import data from one CAMERA object to another like this:
+
+```{r}
+x1 <- CAMERA$new()
+x1$import(x)
 ```
 
 

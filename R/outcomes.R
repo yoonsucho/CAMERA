@@ -46,6 +46,7 @@ CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw,
 
 
 CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self$instrument_outcome) {
+  self$set_summary()
   if(self$source == "OpenGWAS") {
     exp <- dplyr::left_join(exp, subset(self$summary, select=c(exposure_ids, pops)), by=c("id"="exposure_ids")) %>%
       dplyr::select(SNP = rsid, pops, beta, se)
@@ -55,7 +56,7 @@ CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self
     print(str(out))
     dat <- dplyr::inner_join(exp, out, by=c("pops", "SNP"))
   } else {
-    dat <- inner_join(exp, out, by=c("pop", "rsid")) %>% rename(pops="pop", SNP="rsid")
+    dat <- dplyr::inner_join(exp, out, by=c("pop", "rsid")) %>% dplyr::rename(pops="pop", SNP="rsid")
   }
   self$harmonised_dat <- dat
   print(str(dat))
