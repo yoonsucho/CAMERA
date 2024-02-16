@@ -124,9 +124,12 @@ x$fema_regional_instruments(method="zma") %>% str()
 
 ## Re-perform analysis using regional instruments
 
+Note that we're now making a copy of `x` to change the `x$outcome_outcome` and `x$harmonised_dat` objects to reflect the regional instrument selection. But because `x` is an R6 class object, we need to explicitly use the `x$clone()` function to create a new copy.
+
 ```{r}
-x$make_outcome_data(exp=x$instrument_fema)
-x$harmonise()
+x1 <- x$clone()
+x$make_outcome_data(exp=x1$instrument_fema)
+x$harmonise(exp=x1$instrument_fema)
 x$cross_estimate()
 ```
 
@@ -149,39 +152,102 @@ x$instrument_specificity$distinct %>% table
 
 The number of apparently distinct instruments is reduced also.
 
-## Attempt to re-scale instrument-exposure associations
+<!-- ## Attempt to re-scale instrument-exposure associations -->
 
-```{r}
-x1 <- x
-x$standardise_data()
+```{r, eval=FALSE, echo=FALSE}
+x1$standardise_data()
 x$instrument_heterogeneity(x$instrument_raw)
 x1$instrument_heterogeneity(x1$instrument_raw)
 ```
 
-```{r}
+```{r, eval=FALSE, echo=FALSE}
 x$make_outcome_data(exp=x$instrument_fema)
-x$harmonise()
+x$harmonise(exp = x$instrument_fema)
 x$cross_estimate()
 x$plot_cross_estimate()
 ```
 
 ## Evaluate similarity of pleiotropy across ancestry
 
+Note: the term pleiotropy used here refers to 'horizontal pleiotropy', the influence of the SNP on the outcome not mediated through the exposure. 
+
+Here we will find pleiotropy outliers from the MR analysis, and then determine if the deviation of those outliers from the overall MR estimates is consistent across populations
+
 ```{r}
 x$pleiotropy()
 ```
 
+Outliers are detected based on whether a SNP's Wald ratio (in a particular population) is substantially different from the overall estimate. The overall estimate is the combined meta-analysis across all populations and all SNPs, unless that population's overall MR estimate contributed substantially to heterogeneity. In that case, deviation is estimated based on the population's specific MR estimate.
+
+```{r}
+x$pleiotropy_outliers
+```
+
+
+For outliers from a population, are other populations showing similar deviation to the outlier discovery population? e.g. look at whether the sign is the same for outliers discovered in Europeans:
+
+```{r}
+x$pleiotropy_agreement %>% as.data.frame %>% subset(disc == "EUR" & metric=="Sign")
+```
+
+
+Look at the overall relationship of outlier deviations across populations
+
+```{r}
+x$plot_pleiotropy()
+```
+
+Identify any variants that showed substantial differences in pleiotropy deviations across populations. Note that sometimes the pleiotropy deviation estimate is unstable due to the SNP-exposure association being very small. Unstable estimates are attempted to be removed automatically from the heterogeneity analysis
+
+```{r}
+x$plot_pleiotropy_heterogeneity(pthresh=0.05)
+```
+
+No SNPs are showing substantial differences in pleiotropy deviation across populations. Plot everything by relaxing the threshold
+
+```{r}
+x$plot_pleiotropy_heterogeneity(pthresh=1)
+```
+
+
 ## MR GxE
+
+The MR GxE model aims to estimate the horizontal pleiotropic effect of a SNP. This is achieved by estimating its effect on the outcome in a subset of the data where the SNP is not expected to have an association (the zero relevance group). The cross-ancestry MR analysis can attempt to make use of this approach by identifying variants that exhibit heterogeneity in the instrument-exposure association across ancestries. Those instruments can then be used to estimate the pleiotropic association by evaluating their effect on the outcome across populations showing differential SNP-exposure associations.
+
+First identify examples of heterogeneity amongst instrument-exposure associations
 
 ```{r}
 x$estimate_instrument_heterogeneity_per_variant()
+x$instrument_heterogeneity_per_variant %>% dplyr::filter(Qfdr < 0.05)
 ```
+
+Next perform MR GxE (may take a couple of minutes while bootstraping standard errors)
 
 ```{r}
 x$mrgxe()
 x$mrgxe_res
+```
+
+This is the distribution of the estimate of the pleiotropic effect of each SNP that showed heterogeneity
+
+```{r}
 x$mrgxe_plot()
 ```
+
+Any evidence of SNPs with substantial heterogeneity?
+
+```{r}
+x$mrgxe_res %>% dplyr::filter(p.adjust(a_pval, "fdr") < 0.05)
+```
+
+It's worth always checking if these look credible e.g. this plots the SNP-exposure against SNP-outcome associations for the identified SNPs. You'd expect to see a slope reflecting the causal effect estimate with the intercept reflecting the pleiotropic association. 
+
+```{r}
+x$mrgxe_plot_variant()
+```
+
+In this case the associations are very noisy, and it would be difficult to justify that they show convincing evidence of the pleiotropy estimate.
+
 
 ## Saving and loading data
 
@@ -201,191 +267,13 @@ x <- readRDS(file="example-CAMERA.rds")
 
 You can import data from one CAMERA object to another like this:
 
-```{r}
-x1 <- CAMERA$new()
-x1$import(x)
-```
-
-
-```{r}
-load("bmi_regions.rdata")
+```{r, eval=FALSE, echo=FALSE}
 load_all()
-x1 <- x
-y <- CAMERA$new()
-y$import(x)
-y$get_metadata()
-y$set_summary()
-y$estimate_instrument_specificity(y$instrument_raw, alpha = "bonferroni") %>% as.data.frame
-y$instrument_specificity$distinct %>% table
-
-y$fema_regional_instruments()
-y$estimate_instrument_specificity(y$instrument_fema, alpha = "bonferroni") %>% as.data.frame
-y$instrument_specificity$distinct %>% table
-
-
-y$instrument_heterogeneity(y$instrument_fema)
-y$instrument_heterogeneity(y$instrument_raw)
-# y$harmonised_dat(exp=y$instrument_raw, out=y$instrument_outcome)
-y$harmonise()
-
-head(y$harmonised_dat_sem)
-dim(y$harmonised_dat_sem)
-head(y$harmonised_dat)
-dim(y$harmonised_dat)
-y$cross_estimate()
-y$plot_cross_estimate()
-
-
-y$fema_regional_instruments()
-y$plot_regional_instruments(1)
-y$estimate_instrument_specificity(y$instrument_fema, alpha = "bonferroni") %>% as.data.frame
-y$estimate_instrument_specificity(y$instrument_raw, alpha = "bonferroni") %>% as.data.frame
-
-
-
-
-
-
-y$estimate_instrument_heterogeneity_per_variant()
-y
-
-table(y$instrument_heterogeneity_per_variant$Qpval < 0.05)
-table(p.adjust(y$instrument_heterogeneity_per_variant$Qpval, "fdr") < 0.05)
-
-y$mrgxe()
-y$mrgxe_plot()
-
-
-y$mrgxe_res
-hist(y$mrgxe_res$a)
-hist(y$mrgxe_res$b)
-
-
-instrument_heterogeneity(y$harmonised_dat)
-
-
-
-```
-
-```{r}
-y$extract_instrument_regions()
-save(y, file="bmi_regions.rdata")
-y$regional_ld_matrices()
-```
-
-```{r}
-y$perform_basic_sem()
-```
-
-
-Perform Interaction model
-
-Perform GxE for outliers
-
-
-Data construction
-
-gx=instruments for each X
-gx1 = gx from all X
-
-gy=instruments for each y
-gy1 = g1 from all Y
-
-gx_regions = regions around each X instrument
-
-
-
-
-
-```{r}
-
-a <- y$zma_regional_instruments()
-b <- y$fema_regional_instruments()
-
-bind_rows(a[[3]] %>% mutate(what="zma"), b[[3]] %>% mutate(what="fema")) %>% ggplot(., aes(x=position, y=-log10(p))) + geom_point(aes(colour=what))
-
-
-r <- x$instrument_regions[[10]]
-d <- a[[10]]
-plot_regions_fema <- function(r, d) {
-  r <- lapply(r, \(y) y %>% mutate(z=abs(beta)/se))
-  r$fema <- d
-  temp <- lapply(names(r), \(y) r[[y]] %>% dplyr::mutate(pop = y)) %>% dplyr::bind_rows() %>% dplyr::select(position, z, p, pop)
-  th <- temp %>% group_by(pop) %>% arrange(desc(z)) %>% slice_head(n=1) %>% ungroup()
-  thf <- subset(temp, position==subset(th, pop=="fema")$position)
-  ggplot(temp, aes(x=position, y=-log10(p))) +
-  geom_point() +
-  geom_point(data=th, colour="red") +
-  geom_point(data=thf, colour="blue") +
-  facet_grid(pop ~ ., scale="free_y")
-
-  ggplot(temp, aes(x=position, y=-log10(p))) +
-  ggplot2::geom_line(aes(group=as.factor(position)), colour="grey") +
-  ggplot2::geom_point(aes(colour=pop)) +
-  ggplot2::scale_colour_brewer(type="qual")
-}
-
-
-```
-
-
-```{r}
-
-```
-
-
-Instrument extraction
-
-
-E_i = exposure GWAS for population i
-O_i = exposure GWAS for population i
-
-T(E_i)_j = Tophits variant j for GWAS E_i for population i
-
-T(E_i)_ij = Association in exposure GWAS for population i, for tophit variant j for population i
-
-Outcome tophit pool in all outcomes
-
-Exposure tophit pool in all exposures
-Exposure tophit pool in all outcomes
-Exposure region pool in all regions
-
-
-
-
-
-```{r}
-library(ieugwasr)
-select_api("private")
-
-rm(list=ls())
-load_all()
-y <- readRDS("~/x.rds")
+x1 <- readRDS(file="example-CAMERA.rds")
 x <- CAMERA$new()
-x$import(y)
-
-x$extract_instruments()
-str(x$instrument_raw)
-
-x$instrument_heterogeneity(x$instrument_raw)
-x$estimate_instrument_specificity(x$instrument_raw, alpha = "bonferroni")
-
-
-
-x$check_phenotypes(ids=x$outcome_ids)
-
-
-
-x <- CAMERA$new(
-  exposure_ids=c("ukb-e-23104_CSA", "ukb-e-21001_AFR", "ukb-b-19953", "bbj-a-1"), 
-  outcome_ids=c("ukb-e-411_CSA", "ukb-e-411_AFR", "ieu-a-7", "bbj-a-109"), 
-  pops = c("SAS", "AFR", "EUR", "EAS"),
-  bfiles=file.path("/Users/gh13047/repo/opengwas-api-internal/opengwas-api/app/ld_files", c("SAS", "AFR", "EUR", "EAS")),
-  plink = genetics.binaRies::get_plink_binary(), 		
-  radius=50000, 
-  clump_pop="EUR"
-)
-x
-saveRDS(x, file="~/x.rds")
+x$import(x1)
+x$pleiotropy()
+x$plot_pleiotropy()
+x$plot_pleiotropy_heterogeneity(pthresh=0.05)
 ```
 

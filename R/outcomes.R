@@ -29,14 +29,14 @@ CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_
 #' @return Data frame in x$harmonised_dat_sem
 CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw, out = self$instrument_outcome) {
   dx <- dplyr::inner_join(
-    subset(exp, id == self$exposure_ids[[1]]),
-    subset(exp, id == self$exposure_ids[[2]]),
+    subset(exp, id == self$exposure_ids[[3]]),
+    subset(exp, id == self$exposure_ids[[4]]),
     by = "rsid"
   ) %>%
     dplyr::select(SNP = rsid, x1 = beta.x, x2 = beta.y, xse1 = se.x, xse2 = se.y, p1 = p.x, p2 = p.y)
   dy <- dplyr::inner_join(
-    subset(out, id.outcome == self$outcome_ids[[1]]),
-    subset(out, id.outcome == self$outcome_ids[[2]]),
+    subset(out, id.outcome == self$outcome_ids[[3]]),
+    subset(out, id.outcome == self$outcome_ids[[4]]),
     by = "SNP"
   ) %>%
     dplyr::select(SNP = SNP, y1 = beta.outcome.x, y2 = beta.outcome.y, yse1 = se.outcome.x, yse2 = se.outcome.y)

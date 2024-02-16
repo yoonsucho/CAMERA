@@ -93,7 +93,7 @@ CAMERA$set("public", "mrgxe", function(dat = self$harmonised_dat, variant_list =
         dplyr::group_by(SNP) %>%
         dplyr::do({
             egger_bootstrap(.$beta.x, .$se.x, .$beta.y, .$se.y, nboot) %>%
-                mutate(SNP=.$SNP[1])
+                dplyr::mutate(SNP=.$SNP[1])
         })
     return(self$mrgxe_res)
 })
@@ -110,3 +110,18 @@ CAMERA$set("public", "mrgxe_plot", function(mrgxe_res = self$mrgxe_res) {
 })
 
 
+CAMERA$set("public", "mrgxe_plot_variant", function(variant = self$mrgxe_res %>% dplyr::filter(p.adjust(a_pval, "fdr") < 0.05) %>% {.$SNP}, dat = self$harmonised_dat) {
+    dat <- subset(dat, SNP %in% variant)
+    ind <- dat$beta.x < 0
+    dat$beta.x <- abs(dat$beta.x)
+    dat$beta.y[ind] <- dat$beta.y[ind] * -1
+    dat %>%
+        ggplot2::ggplot(., ggplot2::aes(x=beta.x, y=beta.y)) +
+        ggplot2::geom_point() +
+        ggplot2::geom_errorbar(ggplot2::aes(ymin=beta.y-1.96*se.y, ymax=beta.y+1.96*se.y), colour="grey", width=0) +
+        ggplot2::geom_errorbarh(ggplot2::aes(xmin=beta.x-1.96*se.x, xmax=beta.x+1.96*se.x), colour="grey", height=0) +
+        ggplot2::facet_wrap(~ SNP, scale="free") +
+        ggplot2::geom_smooth(method="lm") +
+        ggplot2::geom_vline(xintercept=0, linetype="dotted") +
+        ggplot2::geom_hline(yintercept=0, linetype="dotted")
+})

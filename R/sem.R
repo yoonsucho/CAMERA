@@ -23,24 +23,24 @@ CAMERA$set("public", "perform_basic_sem", function(harmonised_dat = self$harmoni
   out$rm2 <- summary(lm(o2 ~ -1 + w2, data = d)) %>%
     {tibble::tibble(Methods = "RadialIVW", pop = "2", nsnp = nrow(d), bivhat = .$coef[1, 1], se = .$coef[1, 2], pval = .$coef[1, 4])}
 
-  out$semA <- private$runsem("
+  out$semA <- self$runsem("
                                 y1 ~ biv*x1
                                 y2 ~ biv*x2
                                 ", d, "UnweightedSEMa")[1, ] %>%
     dplyr::mutate(pop = replace(pop, pop == 1, "1=2"))
 
-  out$semB <- private$runsem("
+  out$semB <- self$runsem("
                                 y1 ~ biv_1*x1
                                 y2 ~ biv_2*x2
                                 ", d, "UnweightedSEMb")
 
-  out$modC <- private$runsem("
+  out$modC <- self$runsem("
                                 o1 ~ biv*w1
                                 o2 ~ biv*w2
                                 ", d, "RadialSEMa")[1, ] %>%
     dplyr::mutate(pop = replace(pop, pop == 1, "1=2"))
 
-  out$modD <- private$runsem("
+  out$modD <- self$runsem("
                                 o1 ~ biv_1*w1
                                 o2 ~ biv_2*w2
                                 ", d, "RadialSEMb")
@@ -60,13 +60,15 @@ CAMERA$set("public", "runsem", function(model, data, modname) {
     Methods = modname,
     pop = 1:2,
     nsnp = nrow(data),
-    bivhat = mod$PE$est[1:2],
-    se = mod$PE$se[1:2],
-    pval = mod$PE$pvalue[1:2],
-    aic = mod$FIT["aic"]
+    bivhat = mod$pe$est[1:2],
+    se = mod$pe$se[1:2],
+    pval = mod$pe$pvalue[1:2],
+    aic = mod$fit["aic"]
   ) %>% dplyr::mutate(pop = as.character(pop))
-
-  if (is.na(o$se)) {
+  temp <<- mod
+  print(mod)
+  print(o)
+  if (any(is.na(o$se))) {
     message("WARNING: The model convergence was not successful. No constraints were used.")
     mod <- lavaan::sem(model, data = data, check.gradient = FALSE)
     invisible(capture.output(mod <- lavaan::summary(mod, fit.measures = TRUE)))
@@ -74,10 +76,10 @@ CAMERA$set("public", "runsem", function(model, data, modname) {
       Methods = modname,
       pop = 1:2,
       nsnp = nrow(data),
-      bivhat = mod$PE$est[1:2],
-      se = mod$PE$se[1:2],
-      pval = mod$PE$pvalue[1:2],
-      aic = mod$FIT["aic"]
+      bivhat = mod$pe$est[1:2],
+      se = mod$pe$se[1:2],
+      pval = mod$pe$pvalue[1:2],
+      aic = mod$fit["aic"]
     ) %>% dplyr::mutate(pop = as.character(pop))
   }
   return(o)

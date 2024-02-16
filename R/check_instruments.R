@@ -21,7 +21,18 @@ prop_overlap <- function(b_disc, b_rep, se_disc, se_rep, alpha) {
     metric = c("Sign", "Sign", "P-value", "P-value"),
     datum = c("Expected", "Observed", "Expected", "Observed"),
     value = c(sum(p_sign, na.rm = TRUE), sum(sign(b_disc) == sign(b_rep)), sum(p_sig, na.rm = TRUE), sum(p_rep < alpha, na.rm = TRUE))
-  )
+  ) %>%
+    dplyr::group_by(metric) %>%
+      dplyr::do({
+        bt <- binom.test(
+          x=.$value[.$datum == "Observed"], 
+          n=.$nsnp[1], 
+          p=.$value[.$datum == "Expected"] / .$nsnp[1]
+        )$p.value
+        x <- .
+        x$pdiff <- bt
+        x
+      })
   return(list(res = res, variants = dplyr::tibble(sig = p_sig, sign = p_sign, )))
 }
 

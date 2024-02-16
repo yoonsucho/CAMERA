@@ -44,13 +44,32 @@ CAMERA$set("public", "plot_cross_estimate", function(res=self$mrres, qj_alpha=0.
   return(p)
 })
 
+#' Identify blown up estimates
+#' 
+#' Sometimes estimates appear unstable. They are likely unreliable and best to not use for heterogeneity analyses etc. 
+#' 
+#' @param b Vector of betas
+#' @param se Vector of SEs
+#' @param infl Inflation factor - how much larger is the estimate than the estimate of the tightest SE
+#' 
+#' @export 
+#' @return index of betas to remove
+identify_blownup_estimates <- function(b, se, infl) {
+  semin <- which.min(se)
+  abs(b) > infl*abs(b[semin])
+}
+
 #' Perform fixed effects meta analysis for one association
 #' 
 #' @param beta_vec
 #' @param se_vec
+#' @param infl Inflation factor - how much larger is the estimate than the estimate of the tightest SE - for use in removing unreliable estimates
 #' 
 #' @return list of results
-fixed_effects_meta_analysis <- function(beta_vec, se_vec) {
+fixed_effects_meta_analysis <- function(beta_vec, se_vec, infl=10000) {
+    ind <- identify_blownup_estimates(beta_vec, se_vec, infl)
+    beta_vec[ind] <- NA
+    se_vec[ind] <- NA
     w <- 1 / se_vec^2
     beta <- sum(beta_vec * w, na.rm=T) / sum(w, na.rm=T)
     se <- sqrt(1 / sum(w, na.rm=T))
