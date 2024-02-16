@@ -2,7 +2,7 @@
 title: "Import to CAMERA from local data"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{import-local}
+  %\VignetteIndexEntry{Import to CAMERA from local data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -10,12 +10,13 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  cache=TRUE
 )
 ```
 
-```{r setup}
-library(CAMERA)
+```{r}
+library(CAMeRa)
 ```
 
 You can supply to CAMERA from text files or from OpenGWAS (currently not a mixture of both, though you can download the studies in OpenGWAS to be used as raw files). 
@@ -32,7 +33,7 @@ You need to supply the following data:
 Examples of these datasets can be seen in the following file:
 
 ```{r}
-load("inst/extdata/example-local.rdata")
+load(system.file(package="CAMeRa", "extdata/example-local.rdata"))
 instrument_raw
 ```
 
@@ -55,12 +56,12 @@ For example scripts on how these data were generated see https://github.com/yoon
 We have developed a separate set of functions to organise data from text files to generate the data above. 
 
 ```{r}
-metadata <- readRDS("inst/extdata/example-metadata.rds")
+metadata <- readRDS(system.file(package="CAMeRa", "extdata/example-metadata.rds"))
 metadata
 ```
 
 ```{r}
-ld_ref <- tibble(
+ld_ref <- dplyr::tibble(
     pop = unique(metadata$pop),
     bfile = file.path("path/to/plink_files/", pop)
 )

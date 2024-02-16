@@ -24,13 +24,15 @@ prop_overlap <- function(b_disc, b_rep, se_disc, se_rep, alpha) {
   ) %>%
     dplyr::group_by(metric) %>%
       dplyr::do({
-        bt <- binom.test(
-          x=.$value[.$datum == "Observed"], 
-          n=.$nsnp[1], 
-          p=.$value[.$datum == "Expected"] / .$nsnp[1]
-        )$p.value
         x <- .
-        x$pdiff <- bt
+        if(.$nsnp[1] > 0) {
+          bt <- binom.test(
+            x=.$value[.$datum == "Observed"], 
+            n=.$nsnp[1], 
+            p=.$value[.$datum == "Expected"] / .$nsnp[1]
+          )$p.value
+          x$pdiff <- bt
+        }
         x
       })
   return(list(res = res, variants = dplyr::tibble(sig = p_sig, sign = p_sign, )))
@@ -156,7 +158,6 @@ CAMERA$set("public", "instrument_heterogeneity", function(instrument = self$inst
 #' @param alpha Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
 #' @param winnerscurse Use this option to correct winners' curse bias.
 #' @return Table of the results. Summary of the results available in x$instrument_specificity_summary.
-#' @importFrom winnerscurse cl_interval
 CAMERA$set("public", "estimate_instrument_specificity", function(instrument, alpha = "bonferroni", winnerscurse = FALSE) {
   if (alpha == "bonferroni") {
     alpha <- 0.05 / nrow(instrument)

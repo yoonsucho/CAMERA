@@ -106,15 +106,17 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
 CAMERA$set("public", "plot_regional_instruments", function(region, instrument_regions=self$instrument_regions, meta_analysis_regions=self$instrument_fema_regions) {
   r <- instrument_regions[[region]]
   d <- meta_analysis_regions[[region]]
-  r <- lapply(r, \(y) y %>% mutate(z=abs(beta)/se))
+  r <- lapply(r, \(y) y %>% dplyr::mutate(z=abs(beta)/se))
   r$fema <- d
-  temp <- lapply(names(r), \(y) r[[y]] %>% dplyr::mutate(pop = y)) %>% dplyr::bind_rows() %>% dplyr::select(position, z, p, pop)
-  th <- temp %>% group_by(pop) %>% arrange(desc(z)) %>% slice_head(n=1) %>% ungroup()
+  temp <- lapply(names(r), \(y) r[[y]] %>% dplyr::mutate(pop = y)) %>% dplyr::bind_rows() %>% dplyr::select(position, z, p, pop) %>% mutate(region=region)
+  th <- temp %>% dplyr::group_by(pop) %>% dplyr::arrange(desc(z)) %>% dplyr::slice_head(n=1) %>% dplyr::ungroup()
   thf <- subset(temp, position==subset(th, pop=="fema")$position)
-  ggplot(temp, aes(x=position, y=-log10(p))) +
-    geom_point() +
-    geom_point(data=th, colour="red") +
-    geom_point(data=thf, colour="blue") +
-    facet_grid(pop ~ ., scale="free_y")
+  ggplot2::ggplot(temp, ggplot2::aes(x=position, y=-log10(p))) +
+    ggplot2::geom_point() +
+    ggplot2::geom_segment(data=th, aes(x=position, xend=position, y=0, yend=-log10(p)), colour="pink") +
+    ggplot2::geom_point(data=th, colour="red") +
+    ggplot2::geom_segment(data=thf, aes(x=position, xend=position, y=0, yend=-log10(p)), colour="grey") +
+    ggplot2::geom_point(data=thf, colour="blue") +
+    ggplot2::facet_grid(pop ~ region)
 })
 

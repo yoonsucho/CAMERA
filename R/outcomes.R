@@ -11,12 +11,21 @@
 #' @return Data frame in x$instrument_outcome
 CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_exp = 0.05 / nrow(exp)) {
   rsids <- unique(exp$rsido)
+  if(!is.null(self$instrument_outcome)) {
+    message("Appending new outcome data to existing outcome data")
+    rsids <- rsids[!rsids %in% self$instrument_outcome$SNP]
+    message(length(rsids))
+  }
   out <- TwoSampleMR::extract_outcome_data(snps = rsids, outcomes = self$outcome_ids) %>%
     generate_vid(., ea = "effect_allele.outcome", nea = "other_allele.outcome", eaf = "eaf.outcome", beta = "beta.outcome", rsid = "SNP", chr = "chr", position = "pos")
   print(str(out))
   suppressMessages(out <- TwoSampleMR::add_metadata(out, cols = c("sample_size", "ncase", "ncontrol", "unit", "sd")) %>%
     # dplyr::select(rsid=SNP, chr, position=pos, id=id.outcome, beta=beta.outcome, se=se.outcome, p=pval.exposure, ea=effect_allele.outcome, nea=other_allele.outcome, eaf=eaf.outcome, units=units.outcome, samplesize=contains("size")) %>%
     as.data.frame())
+  if(!is.null(self$instrument_outcome)) {
+    out_orig <- self$instrument_outcome
+    out <- dplyr::bind_rows(out_orig, out) %>% subset(!duplicated(paste(SNP, id.outcome)))
+  }
   self$instrument_outcome <- out %>% dplyr::arrange(., chr, SNP)
   invisible(self)
 })
