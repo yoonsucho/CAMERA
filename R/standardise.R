@@ -165,7 +165,6 @@ CAMERA$set("public", "standardise_data", function(dat = self$instrument_raw, sta
   invisible(self)
 })
 
-#' @importFrom TwoSampleMR estimate_trait_sd
 #' @importFrom dplyr group_by mutate
 #' @importFrom tidyr replace_na
 CAMERA$set("private", "sd_standardise", function(dat = dat) {
