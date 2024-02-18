@@ -51,7 +51,6 @@ CAMERA$set("public", "perform_basic_sem", function(harmonised_dat = self$harmoni
 
 
 #' @importFrom tibble tibble
-#' @importFrom lavaan sem
 #' @importFrom dplyr mutate
 CAMERA$set("public", "runsem", function(model, data, modname) {
   mod <- lavaan::sem(model, data = data)

@@ -2,7 +2,6 @@
 #'  This function evaluates how competitable genetic associations in population 1 are with those in population 2. The function checks whether 1) the chosen IDs for the exposure or outcome can be used for the further steps and 2) the units for the genetic associations are comparable between populations.
 #' @param ids ID for the exposure or the outcome. Default is x$exposure_ids.
 #' @return Table of the result.
-#' @importFrom TwoSampleMR extract_instruments extract_outcome_data harmonise_data mr add_metadata mv_extract_exposures mr_ivw mr_simple_mode_nome estimate_trait_sd
 CAMERA$set("public", "check_phenotypes", function(ids = self$exposure_ids) {
   o <- lapply(ids, function(i) {
     tryCatch(

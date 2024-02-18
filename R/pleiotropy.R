@@ -140,7 +140,6 @@ CAMERA$set("public", "plot_pleiotropy_heterogeneity", function(dat = self$pleiot
 #' Return a list of outlying SNPs in each population
 #' @param harmonised_dat Harmonised dataset obtained by using \code{harmonised_dat()}
 #' @return List of the pleiotropic SNPs available in x$pleiotropic_snps. Plot for the distribution of the pleiotropic SNPs based on a data frame in x$pleiotropy_dat.
-#' @importFrom RadialMR format_radial ivw_radial
 CAMERA$set("public", "pleiotropy_deprecated", function(harmonised_dat = self$harmonised_dat_sem) {
   stopifnot(!is.null(harmonised_dat))
 
