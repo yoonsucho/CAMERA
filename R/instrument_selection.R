@@ -47,6 +47,13 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
     stopifnot(all(!is.na(n)))
   }
   
+  # remove duplicated ids from instrument_regions
+  instrument_regions <- lapply(instrument_regions, \(x) {
+    lapply(x, \(y) {
+      subset(y, !duplicated(rsid))
+    })
+  })
+
   # remove regions that have no data
   rem <- lengths(instrument_regions) == 0
   if (any(rem)) {
@@ -93,8 +100,11 @@ CAMERA$set("public", "fema_regional_instruments", function(method = "fema", inst
   # Extract best SNPs from regions for each pop
   inst <- lapply(1:nrow(dsel), \(i) {
     lapply(instrument_regions[[dsel$region[i]]], \(p) {
+      
       subset(p, rsid == dsel$rsid[i])
-    }) %>% dplyr::bind_rows() %>% dplyr::mutate(id=names(instrument_regions[[dsel$region[i]]]))
+    }) %>% 
+      dplyr::bind_rows() %>% 
+      dplyr::mutate(id=names(instrument_regions[[dsel$region[i]]]))
   }) %>% dplyr::bind_rows() %>%
     dplyr::filter(!duplicated(paste(id, rsid)))
   self$instrument_fema <- inst

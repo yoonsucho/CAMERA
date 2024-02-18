@@ -121,3 +121,95 @@ l$estimate_instrument_heterogeneity_per_variant()
 ```
 
 
+
+
+
+
+```{r}
+out <- readRDS(file.path("~/repo/CAMERA_analysis", "data", "stroke_ldl", "organised_summary_data.rds"))
+names(out)
+metadata <- readRDS(file.path("~/repo/CAMERA_analysis", "data", "stroke_ldl", "metadata.rds"))
+load_all()
+```
+
+
+```{r}
+library(dplyr)
+o <- out[[1]]
+inst <- unique(subset(o$tophit_pool, target_trait == "LDL")$vid)
+inst_o <- unique(subset(o$tophit_pool, target_trait == "Stroke")$vid)
+
+names(o$region_extract[[1]]) <- inst
+names(o$region_extract[[2]]) <- inst_o
+
+instrument_raw <- o$tophit_pool %>% filter(target_trait == "LDL" & trait == "LDL") %>% rename(position="pos", nea="oa", p="pval", rsid="vid")
+instrument_outcome <- subset(o$tophit_pool, trait == "Stroke" & target_trait == "LDL" & vid %in% instrument_raw$rsid) %>% rename(position="pos", nea="oa", p="pval", rsid="vid")
+
+# restrict regions to common snps
+
+instrument_raw
+instrument_regions <- lapply(unique(instrument_raw$rsid), \(x) {
+    a <- o$region_extract[[1]][[x]] %>% 
+        filter(trait == "LDL") %>% 
+        rename(position="pos", nea="oa", p="pval", rsid="vid") %>%
+        group_by(pop) %>% 
+        group_split() %>% as.list()
+    names(a) <- sapply(a, \(z) z$id[1])
+    a
+})
+
+instrument_outcome_regions <- lapply(unique(instrument_raw$rsid), \(x) {
+    a <- o$region_extract[[1]][[x]] %>% 
+        filter(trait == "Stroke") %>% 
+        rename(position="pos", nea="oa", p="pval", rsid="vid") %>%
+        group_by(pop) %>% 
+        group_split() %>% as.list()
+    names(a) <- sapply(a, \(z) z$id[1])
+    a
+})
+
+names(instrument_regions) <- unique(instrument_raw$rsid)
+names(instrument_outcome_regions) <- unique(instrument_raw$rsid)
+
+load_all()
+x <- CAMERA$new()
+x$import_from_local(
+  instrument_raw=instrument_raw, 
+  instrument_outcome=instrument_outcome, 
+  instrument_regions=instrument_regions, 
+  instrument_outcome_regions=instrument_outcome_regions, 
+  exposure_ids=unique(instrument_raw$id), 
+  outcome_ids=unique(names(instrument_outcome_regions[[1]]))
+)
+
+x1 <- x$clone()
+
+load_all()
+x <- CAMERA$new()
+x$import(x1)
+x$fema_regional_instruments() %>% str()
+x$instrument_regions[[254]]
+
+x$instrument_heterogeneity()
+
+dat <- x$clone()
+
+
+
+```
+
+
+```{r}
+
+instrument_regions <- x$instrument_regions
+d <- 
+
+
+```
+
+
+```{r}
+x$fema_regional_instruments() %>% str()
+```
+
+
