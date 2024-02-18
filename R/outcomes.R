@@ -31,27 +31,15 @@ CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_
 })
 
 
-#' @description
-#' This function harmonises the alleles and effects between the exposure and outcome.
-#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
-#' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
-#' @return Data frame in x$harmonised_dat_sem
-CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw, out = self$instrument_outcome) {
-  dx <- dplyr::inner_join(
-    subset(exp, id == self$exposure_ids[[3]]),
-    subset(exp, id == self$exposure_ids[[4]]),
-    by = "rsid"
-  ) %>%
-    dplyr::select(SNP = rsid, x1 = beta.x, x2 = beta.y, xse1 = se.x, xse2 = se.y, p1 = p.x, p2 = p.y)
-  dy <- dplyr::inner_join(
-    subset(out, id.outcome == self$outcome_ids[[3]]),
-    subset(out, id.outcome == self$outcome_ids[[4]]),
-    by = "SNP"
-  ) %>%
-    dplyr::select(SNP = SNP, y1 = beta.outcome.x, y2 = beta.outcome.y, yse1 = se.outcome.x, yse2 = se.outcome.y)
-  dat <- dplyr::inner_join(dx, dy, by = "SNP")
-  self$harmonised_dat_sem <- dat
+CAMERA$set("public", "make_outcome_local", function(exp = self$instrument_raw, out = self$instrument_outcome_regions, p_exp = 0.05 / nreow(exp)) {
+  out <- lapply(out, \(x) {
+    lapply(x, \(y) {
+      subset(y, rsid %in% exp$rsid)
+    }) %>% dplyr::bind_rows()
+  }) %>% dplyr::bind_rows()
+  self$instrument_outcome <- out %>% dplyr::arrange(., chr, rsid)
 })
+
 
 
 CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self$instrument_outcome) {
@@ -80,6 +68,30 @@ CAMERA$set("public", "set_summary", function() {
     source=self$source
   )
   print(self$summary)
+})
+
+
+
+#' @description
+#' This function harmonises the alleles and effects between the exposure and outcome.
+#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
+#' @return Data frame in x$harmonised_dat_sem
+CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw, out = self$instrument_outcome) {
+  dx <- dplyr::inner_join(
+    subset(exp, id == self$exposure_ids[[3]]),
+    subset(exp, id == self$exposure_ids[[4]]),
+    by = "rsid"
+  ) %>%
+    dplyr::select(SNP = rsid, x1 = beta.x, x2 = beta.y, xse1 = se.x, xse2 = se.y, p1 = p.x, p2 = p.y)
+  dy <- dplyr::inner_join(
+    subset(out, id.outcome == self$outcome_ids[[3]]),
+    subset(out, id.outcome == self$outcome_ids[[4]]),
+    by = "SNP"
+  ) %>%
+    dplyr::select(SNP = SNP, y1 = beta.outcome.x, y2 = beta.outcome.y, yse1 = se.outcome.x, yse2 = se.outcome.y)
+  dat <- dplyr::inner_join(dx, dy, by = "SNP")
+  self$harmonised_dat_sem <- dat
 })
 
 

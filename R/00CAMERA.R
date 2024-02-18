@@ -75,7 +75,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
     })
   },
 
-  import_from_local = function(instrument_raw, instrument_outcome, instrument_regions, instrument_outcome_regions, exposure_ids, outcome_ids, ...) {
+  import_from_local = function(instrument_raw, instrument_outcome, instrument_regions, instrument_outcome_regions, exposure_ids, outcome_ids, pops, ...) {
     self[["instrument_raw"]] <- instrument_raw %>% generate_vid()
     self[["instrument_outcome"]] <- instrument_outcome  %>% generate_vid()
     self[["instrument_regions"]] <- lapply(instrument_regions, \(x) lapply(x, generate_vid))
@@ -83,6 +83,7 @@ CAMERA <- R6::R6Class("CAMERA", list(
     self[["exposure_ids"]] <- exposure_ids
     self[["outcome_ids"]] <- outcome_ids
     self$source <- "Local"
+    self$pops <- pops
     # Get instrument_outcome
 
     self$assign(...)

@@ -105,7 +105,8 @@ l$import_from_local(
   instrument_regions=instrument_regions, 
   instrument_outcome_regions=instrument_outcome_regions, 
   exposure_ids=unique(instrument_raw$id), 
-  outcome_ids=unique(names(instrument_outcome_regions[[1]]))
+  outcome_ids=unique(names(instrument_outcome_regions[[1]])),
+  pops=c("AFR", "EAS", "EUR", "AMR", "SAS")
 )
 
 l$instrument_heterogeneity()
@@ -179,8 +180,11 @@ x$import_from_local(
   instrument_regions=instrument_regions, 
   instrument_outcome_regions=instrument_outcome_regions, 
   exposure_ids=unique(instrument_raw$id), 
-  outcome_ids=unique(names(instrument_outcome_regions[[1]]))
+  outcome_ids=unique(names(instrument_outcome_regions[[1]])),
+  pops=c("AFR", "EAS", "EUR", "AMR", "SAS")
 )
+
+x$set_summary()
 
 x1 <- x$clone()
 
@@ -188,13 +192,30 @@ load_all()
 x <- CAMERA$new()
 x$import(x1)
 x$fema_regional_instruments() %>% str()
-x$instrument_regions[[254]]
+
+x$make_outcome_local()
+x$harmonise(exp = x$instrument_raw)
+x$cross_estimate()
+x$plot_cross_estimate()
+
+
+x$instrument_fema
+x$make_outcome_local(exp = x$instrument_fema)
+x$harmonise(exp = x$instrument_fema)
+x$cross_estimate()
+dev.new()
+x$plot_cross_estimate()
+
 
 x$instrument_heterogeneity()
+
 
 dat <- x$clone()
 
 
+temp <- inner_join(x$instrument_fema, x$instrument_outcome, by=c("rsid", "pop"))
+
+table(temp$ea.x == temp$ea.y)
 
 ```
 
