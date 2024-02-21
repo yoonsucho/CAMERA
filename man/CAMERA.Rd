@@ -36,14 +36,12 @@ Using a summary set, identify set of instruments for the traits, and peform SEM 
 \item \href{#method-CAMERA-mrgxe_plot}{\code{CAMERA$mrgxe_plot()}}
 \item \href{#method-CAMERA-mrgxe_plot_variant}{\code{CAMERA$mrgxe_plot_variant()}}
 \item \href{#method-CAMERA-make_outcome_data}{\code{CAMERA$make_outcome_data()}}
-\item \href{#method-CAMERA-harmonise_deprecated}{\code{CAMERA$harmonise_deprecated()}}
+\item \href{#method-CAMERA-make_outcome_local}{\code{CAMERA$make_outcome_local()}}
 \item \href{#method-CAMERA-harmonise}{\code{CAMERA$harmonise()}}
 \item \href{#method-CAMERA-set_summary}{\code{CAMERA$set_summary()}}
 \item \href{#method-CAMERA-pleiotropy}{\code{CAMERA$pleiotropy()}}
 \item \href{#method-CAMERA-plot_pleiotropy}{\code{CAMERA$plot_pleiotropy()}}
 \item \href{#method-CAMERA-plot_pleiotropy_heterogeneity}{\code{CAMERA$plot_pleiotropy_heterogeneity()}}
-\item \href{#method-CAMERA-pleiotropy_deprecated}{\code{CAMERA$pleiotropy_deprecated()}}
-\item \href{#method-CAMERA-pleiotropy_specificity_deprecated}{\code{CAMERA$pleiotropy_specificity_deprecated()}}
 \item \href{#method-CAMERA-perform_basic_sem}{\code{CAMERA$perform_basic_sem()}}
 \item \href{#method-CAMERA-runsem}{\code{CAMERA$runsem()}}
 \item \href{#method-CAMERA-standardise_data}{\code{CAMERA$standardise_data()}}
@@ -88,6 +86,7 @@ Migrate the results from a previous CAMERA
   instrument_outcome_regions,
   exposure_ids,
   outcome_ids,
+  pops,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -396,13 +395,14 @@ Create a new dataset and initialise an R interface
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-CAMERA-harmonise_deprecated"></a>}}
-\if{latex}{\out{\hypertarget{method-CAMERA-harmonise_deprecated}{}}}
-\subsection{Method \code{harmonise_deprecated()}}{
+\if{html}{\out{<a id="method-CAMERA-make_outcome_local"></a>}}
+\if{latex}{\out{\hypertarget{method-CAMERA-make_outcome_local}{}}}
+\subsection{Method \code{make_outcome_local()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CAMERA$harmonise_deprecated(
+\if{html}{\out{<div class="r">}}\preformatted{CAMERA$make_outcome_local(
   exp = self$instrument_raw,
-  out = self$instrument_outcome
+  out = self$instrument_outcome_regions,
+  p_exp = 0.05/nreow(exp)
 )}\if{html}{\out{</div>}}
 }
 
@@ -430,7 +430,7 @@ Create a new dataset and initialise an R interface
 \if{latex}{\out{\hypertarget{method-CAMERA-pleiotropy}{}}}
 \subsection{Method \code{pleiotropy()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy(harmonised_dat = self$harmonised_dat)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy(harmonised_dat = self$harmonised_dat, mrres = self$mrres)}\if{html}{\out{</div>}}
 }
 
 }
@@ -451,28 +451,6 @@ Create a new dataset and initialise an R interface
 \if{html}{\out{<div class="r">}}\preformatted{CAMERA$plot_pleiotropy_heterogeneity(
   dat = self$pleiotropy_Q_outliers,
   pthresh = 0.05
-)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-CAMERA-pleiotropy_deprecated"></a>}}
-\if{latex}{\out{\hypertarget{method-CAMERA-pleiotropy_deprecated}{}}}
-\subsection{Method \code{pleiotropy_deprecated()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy_deprecated(harmonised_dat = self$harmonised_dat_sem)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-CAMERA-pleiotropy_specificity_deprecated"></a>}}
-\if{latex}{\out{\hypertarget{method-CAMERA-pleiotropy_specificity_deprecated}{}}}
-\subsection{Method \code{pleiotropy_specificity_deprecated()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CAMERA$pleiotropy_specificity_deprecated(
-  harmonised_dat = self$harmonised_dat_sem,
-  sem_result = self$sem_result,
-  pleioropy = self$pleiotropy_dat
 )}\if{html}{\out{</div>}}
 }
 

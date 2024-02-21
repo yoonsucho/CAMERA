@@ -38,7 +38,13 @@ z_meta_analysis <- function(beta_mat, se_mat, n, eaf_mat) {
   return(tibble(nstudy, p, z=abs(zw)))
 }
 
-
+#' Identify best variant for each region
+#' 
+#' Use the 
+#' 
+#' @param dat Output from `pleiotropy` - `pleiotropy_outliers`
+#' 
+#' @return plot
 CAMERA$set("public", "fema_regional_instruments", function(method = "fema", instrument_regions = self$instrument_regions, instrument_raw = self$instrument_raw, n=self$exposure_metadata$sample_size) {
   
   stopifnot(method %in% c("fema", "zma"))

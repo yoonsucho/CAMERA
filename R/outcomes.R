@@ -31,6 +31,17 @@ CAMERA$set("public", "make_outcome_data", function(exp = self$instrument_raw, p_
 })
 
 
+# Extract a set of instruments from locally-supplied outcome regional data
+# Could use
+# - raw results from extract_instruments
+# - maximised associations from extract_instrument_regions
+# - finemapped hits from susie_finemap_regions
+# - finemapped hits from mscaviar_finemap_regions
+#' @description
+#' The function extracts summary statistics of given a list of instruments and the outcomes
+#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_fema, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param p_exp Statistical threshold to determine significance. Default is "bonferroni", which is eqaul to 0.05/number of the instruments.
+#' @return Data frame in x$instrument_outcome
 CAMERA$set("public", "make_outcome_local", function(exp = self$instrument_raw, out = self$instrument_outcome_regions, p_exp = 0.05 / nreow(exp)) {
   out <- lapply(out, \(x) {
     lapply(x, \(y) {
@@ -41,7 +52,12 @@ CAMERA$set("public", "make_outcome_local", function(exp = self$instrument_raw, o
 })
 
 
-
+#' Harmonise exposure and outcome datasets
+#' @description
+#' This function harmonises the alleles and effects between the exposure and outcome.
+#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_fema, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
+#' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
+#' @return Data frame in x$harmonised_dat_sem
 CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self$instrument_outcome) {
   self$set_summary()
   if(self$source == "OpenGWAS") {
@@ -59,7 +75,9 @@ CAMERA$set("public", "harmonise", function(exp = self$instrument_raw, out = self
   print(str(dat))
 })
 
-
+#' Generate summary of exposure, outcome and population metadata
+#' 
+#' @return data frame
 CAMERA$set("public", "set_summary", function() {
   self$summary <- dplyr::tibble(
     pops = self$pops,
@@ -69,29 +87,3 @@ CAMERA$set("public", "set_summary", function() {
   )
   print(self$summary)
 })
-
-
-
-#' @description
-#' This function harmonises the alleles and effects between the exposure and outcome.
-#' @param exp Intsruments for the exposure that are selected by using the provided methods in CAMERA (x$instrument_raw, x$instrument_maxz, x$instrument_susie, x$instrument_paintor). Default is x$instrument_raw.
-#' @param out Intsruments for the outcome by using \code{make_outcome_data()}. Default is x$instrument_outcome.
-#' @return Data frame in x$harmonised_dat_sem
-CAMERA$set("public", "harmonise_deprecated", function(exp = self$instrument_raw, out = self$instrument_outcome) {
-  dx <- dplyr::inner_join(
-    subset(exp, id == self$exposure_ids[[3]]),
-    subset(exp, id == self$exposure_ids[[4]]),
-    by = "rsid"
-  ) %>%
-    dplyr::select(SNP = rsid, x1 = beta.x, x2 = beta.y, xse1 = se.x, xse2 = se.y, p1 = p.x, p2 = p.y)
-  dy <- dplyr::inner_join(
-    subset(out, id.outcome == self$outcome_ids[[3]]),
-    subset(out, id.outcome == self$outcome_ids[[4]]),
-    by = "SNP"
-  ) %>%
-    dplyr::select(SNP = SNP, y1 = beta.outcome.x, y2 = beta.outcome.y, yse1 = se.outcome.x, yse2 = se.outcome.y)
-  dat <- dplyr::inner_join(dx, dy, by = "SNP")
-  self$harmonised_dat_sem <- dat
-})
-
-

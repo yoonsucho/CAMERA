@@ -1,5 +1,9 @@
 #' @description
-#' Perform interaction IVW analysis and global analysis, with model comparison 
+#' This method performs a IVW analysis on the harmonised data. It fits two linear models, one considering all populations and another considering each population separately. It then performs a fixed effects meta-analysis to estimate the heterogeneity across different populations. The results are stored in the `mrres` attribute of the `CAMERA` object.
+#'
+#' @param dat A data frame containing the harmonised data. It should have the columns `beta.y`, `beta.x`, `se.y`, and `pops`. If not provided, the method uses the `harmonised_dat` attribute of the `CAMERA` object.
+#'
+#' @return A list containing the results of the analysis. The list includes the coefficients of the fitted models, and the results of the heterogeneity analysis.
 CAMERA$set("public", "cross_estimate", function(dat=self$harmonised_dat) {
   mod1 <- lm(beta.y ~ -1 + beta.x, data=dat, weight=1/dat$se.y^2)
   mod2 <- lm(beta.y ~ -1 + beta.x:as.factor(pops), data=dat, weight=1/dat$se.y^2)
@@ -13,7 +17,6 @@ CAMERA$set("public", "cross_estimate", function(dat=self$harmonised_dat) {
     smod2$coefficients %>% dplyr::as_tibble() %>% dplyr::mutate(pops=levels(as.factor(dat$pops)))
   ) %>%
     dplyr::select(pops, dplyr::everything())
-  # res$pdiff <- modcomp
   heterogeneity <- fixed_effects_meta_analysis(res$coefficients$Estimate[-1], res$coefficients$`Std. Error`[-1])
   heterogeneity$Qj <- dplyr::tibble(
     pops = res$coefficients$pops[-1],
@@ -26,11 +29,16 @@ CAMERA$set("public", "cross_estimate", function(dat=self$harmonised_dat) {
   res$coefficients$Qj[res$coefficients$pops=="All"] <- heterogeneity$Q
   res$coefficients$Qjpval[res$coefficients$pops=="All"] <- heterogeneity$Qpval
   res$coefficients$Qdf[res$coefficients$pops=="All"] <- heterogeneity$Qdf
-  self$mrres <- res
+  self$mrres <- res$coefficients
   return(self$mrres)
 })
 
-
+#' @description
+#' Plot the results from `cross_estimate`
+#'
+#' @param dat A data frame containing the harmonised data. It should have the columns `beta.y`, `beta.x`, `se.y`, and `pops`. If not provided, the method uses the `harmonised_dat` attribute of the `CAMERA` object.
+#'
+#' @return A list containing the results of the analysis. The list includes the coefficients of the fitted models, and the results of the heterogeneity analysis.
 CAMERA$set("public", "plot_cross_estimate", function(res=self$mrres, qj_alpha=0.05) {
   est <- res$coefficients
   est$what <- "Pops"
@@ -65,6 +73,7 @@ identify_blownup_estimates <- function(b, se, infl) {
 #' @param se_vec
 #' @param infl Inflation factor - how much larger is the estimate than the estimate of the tightest SE - for use in removing unreliable estimates
 #' 
+#' @export
 #' @return list of results
 fixed_effects_meta_analysis <- function(beta_vec, se_vec, infl=10000) {
     ind <- identify_blownup_estimates(beta_vec, se_vec, infl)
@@ -80,7 +89,5 @@ fixed_effects_meta_analysis <- function(beta_vec, se_vec, infl=10000) {
     if(Qdf == 0) Q <- 0
     Qjpval <- pchisq(Qj, 1, lower.tail=FALSE)
     Qpval <- pchisq(Q, Qdf, lower.tail=FALSE)
-    return(list(beta=beta, se=se, Q=Q, Qdf=Qdf, Qpval=Qpval, Qj=Qj, Qjpval=Qjpval))
+    return(list(beta=beta, se=se, pval=pval, Q=Q, Qdf=Qdf, Qpval=Qpval, Qj=Qj, Qjpval=Qjpval))
 }
-
-
