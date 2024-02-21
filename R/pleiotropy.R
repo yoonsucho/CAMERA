@@ -23,13 +23,13 @@ CAMERA$set("public", "pleiotropy", function(harmonised_dat = self$harmonised_dat
   sig$biv.se <- NA
 
   for(pop in unique(sig$pops)) {
-    Qjpval <- mrres$coefficients$Qjpval[mrres$coefficients$pops == pop]
+    Qjpval <- mrres$Qjpval[mrres$pops == pop]
     if(Qjpval < 0.05) {
-      b <- mrres$coefficients$Estimate[mrres$coefficients$pops == pop]
-      se <- mrres$coefficients$`Std. Error`[mrres$coefficients$pops == pop]
+      b <- mrres$Estimate[mrres$pops == pop]
+      se <- mrres$`Std. Error`[mrres$pops == pop]
     } else {
-      b <- mrres$coefficients$Estimate[mrres$coefficients$pops == "All"]
-      se <- mrres$coefficients$`Std. Error`[mrres$coefficients$pops == "All"]
+      b <- mrres$Estimate[mrres$pops == "All"]
+      se <- mrres$`Std. Error`[mrres$pops == "All"]
     }
     sig$biv[sig$pops == pop] <- b
     sig$biv.se[sig$pops == pop] <- se
