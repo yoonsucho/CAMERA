@@ -111,8 +111,9 @@ CAMERA <- R6::R6Class("CAMERA", list(
     self$plink <- plink
     self$radius <- radius
     self$clump_pop <- clump_pop
-    self$source <- "OpenGWAS"
-    if(!is.null(exposure_ids)) self$get_metadata()
-    
+    if(!is.null(exposure_ids)) {
+      self$source <- "OpenGWAS"
+      self$get_metadata()
+    }
   }
 ))
