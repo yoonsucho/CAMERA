@@ -1,13 +1,11 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-# CAMERA
+# Cross Ancestry Mendelian Randomisation
 
 <!-- badges: start -->
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
-The goal of CAMERA is to estimate causal effects using summary
-statistics in multiple ancestries. CAMERA provides:
+The goal of CAMeRa is to estimate causal effects using summary
+statistics in multiple ancestries. CAMeRa provides:
 
 1)  Selecting genetic instruments for multiple populations.
 2)  Estimating the causal effect where exposure and outcome summary
@@ -17,7 +15,7 @@ statistics in multiple ancestries. CAMERA provides:
 
 ## Installation
 
-You can install the released / development version of CAMERA from GitHub
+You can install the released / development version of CAMeRa from GitHub
 with:
 
 ``` r
@@ -27,4 +25,4 @@ remotes::install_github("universe77/CAMERA")
 
 ## Example
 
-A basic example is provided in a vignette.
+See the vignettes for examples

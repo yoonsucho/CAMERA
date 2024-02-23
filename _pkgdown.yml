@@ -1,0 +1,8 @@
+url: ~
+template:
+  bootstrap: 5
+
+navbar:
+  right:
+   - icon: fa-github
+     href: https://github.com/universe77/CAMERA

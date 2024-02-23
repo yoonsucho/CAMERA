@@ -4,3 +4,8 @@
 ^\.Rproj\.user$
 ^ieugwasr_oauth$
 ^CAMERA\.Rproj$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^doc$
+^Meta$

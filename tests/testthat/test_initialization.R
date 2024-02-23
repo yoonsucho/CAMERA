@@ -22,3 +22,13 @@ test_that("extract_instrument", {
   x$extract_instruments()
   expect_true(nrow(x$instrument_raw) > 2)
 })
+
+
+test_that("import", {
+  example_file <- system.file(file.path("extdata", "example-CAMERA.rds"), package = "CAMeRa")
+  xold <- readRDS(example_file)
+  x <- CAMERA$new()
+  x$import(xold)
+  rm(xold)
+  expect_true(inherits(x, "CAMERA"))
+})

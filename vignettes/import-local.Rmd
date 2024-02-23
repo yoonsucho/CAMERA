@@ -1,0 +1,236 @@
+---
+title: "Import to CAMERA from local data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Import to CAMERA from local data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  cache=TRUE
+)
+```
+
+```{r}
+library(CAMeRa)
+```
+
+You can supply to CAMERA from text files or from OpenGWAS (currently not a mixture of both, though you can download the studies in OpenGWAS to be used as raw files). 
+
+## Generating the data manually
+
+You need to supply the following data:
+
+- `instrument_raw` = a data frame of pooled instruments across all ancestries, that has been extracted from each ancestry for the exposure traits. Optionally also provide the same for the outcome traits.
+- `instrument_outcome` = instruments in `instrument_raw` extracted from the outcome datasets
+- `instrument_regions` = named list of data frames of length number of unique instruments in `instrument_raw`. Names of each item are the instruments. Each item is a list of regional extracts around the instrument from each population exposure study.
+- `instrument_outcome_regions` = as above but for the outcome datasets.
+
+Examples of these datasets can be seen in the following file:
+
+```{r}
+load(system.file(package="CAMeRa", "extdata/example-local.rdata"))
+instrument_raw
+```
+
+```{r}
+instrument_outcome
+```
+
+```{r}
+instrument_regions[[1]]
+```
+
+```{r}
+instrument_outcome_regions[[1]]
+```
+
+For example scripts on how these data were generated see https://github.com/yoonsucho/CAMERA_analysis/tree/main/scripts/ldl_stroke_analysis
+
+## Generating the data using `CAMERA_local`
+
+We have developed a separate set of functions to organise data from text files to generate the data above. 
+
+```{r}
+metadata <- readRDS(system.file(package="CAMeRa", "extdata/example-metadata.rds"))
+metadata
+```
+
+```{r}
+ld_ref <- dplyr::tibble(
+    pop = unique(metadata$pop),
+    bfile = file.path("path/to/plink_files/", pop)
+)
+ld_ref
+```
+
+```{r, eval=FALSE}
+localdata <- CAMERA_local$new(metadata = metadata, ld_ref = ld_ref, plink_bin = "path/to/plink")
+localdata$organise()
+```
+
+This will read the files specified in the metadata and attempt to arrange the data as described above, generating `localdata$instrument_raw`, `localdata$instrument_outcome` etc.
+
+You can then generate the `CAMERA` object e.g.
+
+```{r}
+l <- CAMERA$new()
+l$import_from_local(
+  instrument_raw=instrument_raw, 
+  instrument_outcome=instrument_outcome, 
+  instrument_regions=instrument_regions, 
+  instrument_outcome_regions=instrument_outcome_regions, 
+  exposure_ids=unique(instrument_raw$id), 
+  outcome_ids=unique(names(instrument_outcome_regions[[1]]))
+)
+
+l$instrument_heterogeneity()
+```
+
+
+```{r, eval=FALSE, echo=FALSE}
+library(devtools)
+
+load_all()
+load("inst/extdata/example-local.rdata")
+
+l <- CAMERA$new()
+l$import_from_local(
+  instrument_raw=instrument_raw, 
+  instrument_outcome=instrument_outcome, 
+  instrument_regions=instrument_regions, 
+  instrument_outcome_regions=instrument_outcome_regions, 
+  exposure_ids=unique(instrument_raw$id), 
+  outcome_ids=unique(names(instrument_outcome_regions[[1]])),
+  pops=c("AFR", "EAS", "EUR", "AMR", "SAS")
+)
+
+l$instrument_heterogeneity()
+l$estimate_instrument_specificity(l$instrument_raw)
+l$harmonise()
+
+l$fema_regional_instruments()
+
+l$cross_estimate()
+l$plot_cross_estimate()
+
+l$estimate_instrument_heterogeneity_per_variant()
+```
+
+
+
+
+
+
+```{r}
+out <- readRDS(file.path("~/repo/CAMERA_analysis", "data", "stroke_ldl", "organised_summary_data.rds"))
+names(out)
+metadata <- readRDS(file.path("~/repo/CAMERA_analysis", "data", "stroke_ldl", "metadata.rds"))
+load_all()
+```
+
+
+```{r}
+library(dplyr)
+o <- out[[1]]
+inst <- unique(subset(o$tophit_pool, target_trait == "LDL")$vid)
+inst_o <- unique(subset(o$tophit_pool, target_trait == "Stroke")$vid)
+
+names(o$region_extract[[1]]) <- inst
+names(o$region_extract[[2]]) <- inst_o
+
+instrument_raw <- o$tophit_pool %>% filter(target_trait == "LDL" & trait == "LDL") %>% rename(position="pos", nea="oa", p="pval", rsid="vid")
+instrument_outcome <- subset(o$tophit_pool, trait == "Stroke" & target_trait == "LDL" & vid %in% instrument_raw$rsid) %>% rename(position="pos", nea="oa", p="pval", rsid="vid")
+
+# restrict regions to common snps
+
+instrument_raw
+instrument_regions <- lapply(unique(instrument_raw$rsid), \(x) {
+    a <- o$region_extract[[1]][[x]] %>% 
+        filter(trait == "LDL") %>% 
+        rename(position="pos", nea="oa", p="pval", rsid="vid") %>%
+        group_by(pop) %>% 
+        group_split() %>% as.list()
+    names(a) <- sapply(a, \(z) z$id[1])
+    a
+})
+
+instrument_outcome_regions <- lapply(unique(instrument_raw$rsid), \(x) {
+    a <- o$region_extract[[1]][[x]] %>% 
+        filter(trait == "Stroke") %>% 
+        rename(position="pos", nea="oa", p="pval", rsid="vid") %>%
+        group_by(pop) %>% 
+        group_split() %>% as.list()
+    names(a) <- sapply(a, \(z) z$id[1])
+    a
+})
+
+names(instrument_regions) <- unique(instrument_raw$rsid)
+names(instrument_outcome_regions) <- unique(instrument_raw$rsid)
+
+load_all()
+x <- CAMERA$new()
+x$import_from_local(
+  instrument_raw=instrument_raw, 
+  instrument_outcome=instrument_outcome, 
+  instrument_regions=instrument_regions, 
+  instrument_outcome_regions=instrument_outcome_regions, 
+  exposure_ids=unique(instrument_raw$id), 
+  outcome_ids=unique(names(instrument_outcome_regions[[1]])),
+  pops=c("AFR", "EAS", "EUR", "AMR", "SAS")
+)
+
+x$set_summary()
+
+x1 <- x$clone()
+
+load_all()
+x <- CAMERA$new()
+x$import(x1)
+x$fema_regional_instruments() %>% str()
+
+x$make_outcome_local()
+x$harmonise(exp = x$instrument_raw)
+x$cross_estimate()
+x$plot_cross_estimate()
+
+
+x$instrument_fema
+x$make_outcome_local(exp = x$instrument_fema)
+x$harmonise(exp = x$instrument_fema)
+x$cross_estimate()
+dev.new()
+x$plot_cross_estimate()
+
+
+x$instrument_heterogeneity()
+
+
+dat <- x$clone()
+
+
+temp <- inner_join(x$instrument_fema, x$instrument_outcome, by=c("rsid", "pop"))
+
+table(temp$ea.x == temp$ea.y)
+
+```
+
+
+```{r}
+
+instrument_regions <- x$instrument_regions
+d <- 
+
+
+```
+
+
+```{r}
+x$fema_regional_instruments() %>% str()
+```
+
+

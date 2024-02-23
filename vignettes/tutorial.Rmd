@@ -1,0 +1,376 @@
+---
+title: "Tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  cache=TRUE,
+  eval=TRUE,
+  warning=FALSE
+)
+```
+
+```{r setup}
+library(CAMeRa)
+```
+
+
+## Introduction
+
+This software attempts to bring together various tools to improve cross-ancestry Mendelian randomisation. It will use an example of performing analysis of BMI on coronary heart disease across four major ancestral groups.
+
+Overview:
+
+- Initialise data
+- Check phenotype scales across ancestries
+- Extract instruments
+- Evaluate instrument heterogeneity across populations
+- Extract outcome data
+- Harmonise exposure and outcome data
+- Perform analysis using raw instruments
+- Perform regional scan to obtain LD agnostic instruments
+- Re-perform analysis using regional instruments
+- Evaluate similarity of pleiotropy across ancestry
+- Evaluate similarity of instrument-exposure associations
+- Use cross-population instrument-exposure heterogeneity in MR GxE framework to estimate pleiotropy distributions
+- Saving and loading data
+
+```{r, echo=FALSE, message=FALSE}
+ieugwasr::select_api("private")
+```
+
+## Initialise data
+
+CAMeRa begins by choosing an exposure and outcome hypothesis that can be tested in multi-ancestral populations. Here, we will be estimating the causal effect of body mass index (BMI) on coronary heart disease (CHD) in European (EUR), East Asian (EAS), African (AFR) and South Asian (SAS) ancestries.
+
+Summary statistics data can be extracted from the IEU GWAS database using the [TwoSampleMR](https://mrcieu.github.io/TwoSampleMR/) package. A list of available traits can be obtained using:
+
+```{r, eval=FALSE}
+traits <- TwoSampleMR::available_outcomes()
+```
+
+You can also browse the available traits here: https://gwas.mrcieu.ac.uk/. Also see other vignettes on this site about how you can use local summary statistics instead.
+
+Once you obtain the study IDs for the exposure and the outcome, open R6 class environment to run CAMERA. The minimum information required for CAMERA is the following:
+
+* Summary statistics for the exposure and the outcome
+* Population information 
+* Plink (ver.1.90)
+* LD reference data 
+
+Plink (ver.1.90) and LD reference data are required to identify instruments that can be used for both populations. LD reference data can be accessed from: http://fileserve.mrcieu.ac.uk/ld/1kg.v3.tgz.
+
+
+```{r}
+bfile_dir <- "/path/to/ld_files"
+x <- CAMERA$new(
+  exposure_ids=c(
+    "ukb-e-23104_CSA", 
+    "ukb-e-21001_AFR", 
+    "ukb-b-19953", 
+    "bbj-a-1"
+  ), 
+  outcome_ids=c(
+    "ukb-e-411_CSA", 
+    "ukb-e-411_AFR", 
+    "ieu-a-7", 
+    "bbj-a-109"
+  ), 
+  pops = c("SAS", "AFR", "EUR", "EAS"),
+  bfiles=file.path(bfile_dir, c("SAS", "AFR", "EUR", "EAS")),
+  plink = genetics.binaRies::get_plink_binary(), 		
+  radius=50000, 
+  clump_pop="EUR"
+)
+x
+```
+
+```{r, eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+x1 <- readRDS(system.file(package="CAMeRa", "extdata/example-CAMERA.rds"))
+x <- CAMERA$new()
+x$import(x1)
+rm(x1)
+```
+
+## Check phenotype scales across ancestries
+
+Make sure that the exposures/outcomes are matched across the populations. The different populations should have the same exposure-outcome pair, with exposure and outcome traits measured in the same way and with the same units. Also, instrument-trait associations should be consistent between the populations (e.g. how similar SNP-BMI association in EUR to SNP-BMI assocation in EAS). You can check this as follows:
+
+```{r, eval=FALSE}
+x$check_phenotypes(ids=x$exposure_ids)
+x$check_phenotypes(ids=x$outcome_ids)
+```
+
+## Extract instruments
+
+We can now perform the analysis, which will do the following:
+
+1. Extract instruments for the exposures
+2. Check the validity of the instruments across the populations (Standardise/scale the data if necessary)
+3. Extract new instruments based on LD information and fine-mapping
+4. Extract instruments for the outcomes
+5. Harmonise the exposure data and the outcome data
+6. Perform MR
+
+Note see the `?CAMERA` for options on the parameters for this analysis. 
+
+The following function identifies SNPs that have strong associations with the exposure in each population. This is the same method as instrument extraction for multivariable MR. 
+
+```{r, eval=FALSE}
+x$extract_instruments()
+```
+
+A data frame of the extracted instruments is stored in `x$instrument_raw`
+
+```{r}
+str(x$instrument_raw)
+```
+
+## Evaluate instrument heterogeneity across populations
+
+It is important to ensure that the instruments for the exposure are valid across the populations. Once instruments for the exposure trait are identified for each population, we can assess specificity of the instruments. Each of the following functions estimates heterogeneity of the instruments between and calculates fraction of the instruments (obtained from the Step 1) that are replicated between the populations.
+
+```{r}
+x$instrument_heterogeneity()
+```
+
+```{r}
+x$estimate_instrument_specificity(instrument=x$instrument_raw)
+```
+
+## Extract outcome data
+
+```{r, eval=FALSE}
+x$make_outcome_data()
+```
+
+## Harmonise exposure and outcome data
+
+```{r}
+x$harmonise()
+```
+
+## Perform analysis using raw instruments
+
+We will perform an inverse variance weighted fixed effects MR method within population and across all populations. Heterogeneity estimates will be generated to evaluate if each population has a distinct association compared to others. The combined estimate across all populations assumes that the effect is drawn from the same distribution and if that assumption holds then then power is improved because of the combined information.
+
+```{r}
+x$cross_estimate()
+```
+
+Here we see a very consistent assocation across all ancestries. Note that the `All` estimate is slightly more precisely estimated than any of the others because it is combining similar estimates.
+
+We can visualise the estimates:
+
+```{r}
+x$plot_cross_estimate()
+```
+
+## Perform regional scan to obtain LD agnostic instruments
+
+We can re-select the instruments scanning across the region. The intention here is to allow all populations to contribute to a fixed effects meta analysis to account for LD. Then the top variant in the region from the meta analysis is used as the instrument for all populations.
+
+```{r, message=FALSE, eval=FALSE}
+x$extract_instrument_regions()
+```
+
+This has extracted regions around all the pooled instruments from each exposure dataset. Now we can use either fixed effects meta analysis within each region to choose the best SNP across all ancestries. For the cases where the most strongly associated SNPs are not available at exactly the same position, the function searches alternative SNPs that are located near the original SNP and show the largest effect size magnitude.
+
+```{r}
+x$fema_regional_instruments() %>% str()
+```
+
+or use a Z-score based meta analysis if you are unsure about whether the effect size scales are sufficiently consistent across the studies:
+
+```{r}
+x$fema_regional_instruments(method="zma") %>% str()
+```
+
+Example
+
+```{r}
+x$plot_regional_instruments(names(x$instrument_regions)[3])
+```
+
+Here, the European top hit is in LD with many other variants in the European ancestry, but meta-analysing with the other ancestries identified a similarly strongly associated variant in Europeans that is also strongly associated in East Asians. Had we used the European top hit then we would have missed the stronger association in the region that associates with other ancestries too. Note that the sample sizes for the SAS and AFR studies are very small and relatively underpowered throughout the analysis.
+
+## Re-perform analysis using regional instruments
+
+Note that we're now making a copy of `x` to change the `x$outcome_outcome` and `x$harmonised_dat` objects to reflect the regional instrument selection. But because `x` is an R6 class object, we need to explicitly use the `x$clone()` function to create a new copy.
+
+```{r}
+x1 <- x$clone()
+```
+
+Now override the harmonised data using the regional instrument selection
+
+```{r, eval=FALSE}
+x$make_outcome_data(exp=x$instrument_fema)
+```
+
+Re-harmonise with the newly extracted data
+
+```{r}
+x$harmonise(exp=x$instrument_fema)
+```
+
+Re-estimate the MR associations using the newly derived regional instruments
+
+```{r}
+x$cross_estimate()
+```
+
+The precision of the associations are improved because of the improved instrument selection.
+
+```{r}
+x$plot_cross_estimate()
+```
+
+Evaluate instrument specificity. First using heterogeneity
+
+```{r}
+x$instrument_heterogeneity(x$instrument_fema)
+```
+
+Compared to above the `agreement` regression slopes are much closer to 1 for all ancestries.
+
+```{r}
+x$estimate_instrument_specificity(x$instrument_fema, alpha = "bonferroni")
+x$instrument_specificity$distinct %>% table
+```
+
+The number of apparently distinct instruments is reduced also.
+
+<!-- ## Attempt to re-scale instrument-exposure associations -->
+
+```{r, eval=FALSE, echo=FALSE}
+x1$standardise_data()
+x$instrument_heterogeneity(x$instrument_raw)
+x1$instrument_heterogeneity(x1$instrument_raw)
+```
+
+```{r, eval=FALSE, echo=FALSE}
+x$make_outcome_data(exp=x$instrument_fema)
+x$harmonise(exp = x$instrument_fema)
+x$cross_estimate()
+x$plot_cross_estimate()
+```
+
+## Evaluate similarity of pleiotropy across ancestry
+
+Note: the term pleiotropy used here refers to 'horizontal pleiotropy', the influence of the SNP on the outcome not mediated through the exposure. 
+
+Here we will find pleiotropy outliers from the MR analysis, and then determine if the deviation of those outliers from the overall MR estimates is consistent across populations
+
+```{r}
+x$pleiotropy()
+```
+
+Outliers are detected based on whether a SNP's Wald ratio (in a particular population) is substantially different from the overall estimate. The overall estimate is the combined meta-analysis across all populations and all SNPs, unless that population's overall MR estimate contributed substantially to heterogeneity. In that case, deviation is estimated based on the population's specific MR estimate.
+
+```{r}
+x$pleiotropy_outliers
+```
+
+
+For outliers from a population, are other populations showing similar deviation to the outlier discovery population? e.g. look at whether the sign is the same for outliers discovered in Europeans:
+
+```{r}
+x$pleiotropy_agreement %>% as.data.frame %>% subset(disc == "EUR" & metric=="Sign")
+```
+
+
+Look at the overall relationship of outlier deviations across populations
+
+```{r}
+x$plot_pleiotropy()
+```
+
+Identify any variants that showed substantial differences in pleiotropy deviations across populations. Note that sometimes the pleiotropy deviation estimate is unstable due to the SNP-exposure association being very small. Unstable estimates are attempted to be removed automatically from the heterogeneity analysis
+
+```{r}
+x$plot_pleiotropy_heterogeneity(pthresh=0.05)
+```
+
+No SNPs are showing substantial differences in pleiotropy deviation across populations. Plot everything by relaxing the threshold
+
+```{r}
+x$plot_pleiotropy_heterogeneity(pthresh=1)
+```
+
+
+## MR GxE
+
+The MR GxE model aims to estimate the horizontal pleiotropic effect of a SNP. This is achieved by estimating its effect on the outcome in a subset of the data where the SNP is not expected to have an association (the zero relevance group). The cross-ancestry MR analysis can attempt to make use of this approach by identifying variants that exhibit heterogeneity in the instrument-exposure association across ancestries. Those instruments can then be used to estimate the pleiotropic association by evaluating their effect on the outcome across populations showing differential SNP-exposure associations.
+
+First identify examples of heterogeneity amongst instrument-exposure associations
+
+```{r}
+x$estimate_instrument_heterogeneity_per_variant()
+x$instrument_heterogeneity_per_variant %>% dplyr::filter(Qfdr < 0.05)
+```
+
+Next perform MR GxE (may take a couple of minutes while bootstraping standard errors)
+
+```{r}
+x$mrgxe()
+x$mrgxe_res
+```
+
+This is the distribution of the estimate of the pleiotropic effect of each SNP that showed heterogeneity
+
+```{r}
+x$mrgxe_plot()
+```
+
+Any evidence of SNPs with substantial heterogeneity?
+
+```{r}
+x$mrgxe_res %>% dplyr::filter(p.adjust(a_pval, "fdr") < 0.05)
+```
+
+It's worth always checking if these look credible e.g. this plots the SNP-exposure against SNP-outcome associations for the identified SNPs. You'd expect to see a slope reflecting the causal effect estimate with the intercept reflecting the pleiotropic association. 
+
+```{r}
+x$mrgxe_plot_variant()
+```
+
+In this case the associations are very noisy, and it would be difficult to justify that they show convincing evidence of the pleiotropy estimate.
+
+
+## Saving and loading data
+
+It can be useful to import data from one CAMERA object to another, because for example you may have all your data, but the CAMERA class has been updated, and you want to initialise a new class and import all the old data into the new class.
+
+Save CAMERA objects as RDS files e.g.
+
+```{r, eval=FALSE}
+saveRDS(x, file="example-CAMERA.rds")
+```
+
+And load them like this:
+
+```{r, eval=FALSE}
+x <- readRDS(file="example-CAMERA.rds")
+```
+
+You can import data from one CAMERA object to another like this:
+
+```{r, eval=FALSE, echo=FALSE}
+load_all()
+x1 <- readRDS(file="inst/extdata/example-CAMERA.rds")
+x <- CAMERA$new()
+x$import(x1)
+saveRDS(x, file="inst/extdata/example-CAMERA.rds")
+x$pleiotropy()
+x$plot_pleiotropy()
+x$plot_pleiotropy_heterogeneity(pthresh=0.05)
+```
+

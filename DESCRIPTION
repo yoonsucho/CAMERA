@@ -1,6 +1,6 @@
-Package: CAMERA
-Title: CAMERA (Cross Ancestral Mendelian Randomisation)
-Version: 0.0.0.9000
+Package: CAMeRa
+Title: CAMeRa (Cross Ancestral Mendelian Randomisation)
+Version: 0.1.0
 Authors@R: c(
     person("Yoonsu", "Cho", , "yoonsu.cho@bristol.ac.uk", role = "aut"),
     person("Gibran", "Hemani", , "g.hemani@bristol.ac.uk", role = c("aut", "cre"),
@@ -10,20 +10,19 @@ Description: CAMERA estimates joint causal effect in multiple ancestries
     and detects pleiotropy via the zero relevance model.
 License: MIT + file LICENSE
 Depends: 
-    R (>= 3.5.0)
+    R (>= 4.1.0)
 Imports: 
     dplyr,
     ggplot2,
     ieugwasr,
-    lavaan,
     magrittr,
-    RadialMR,
-    susieR,
-    tibble,
     tidyr,
-    TwoSampleMR,
-    winnerscurse
 Suggests: 
+    RadialMR,
+    winnerscurse,
+    TwoSampleMR,
+    lavaan,
+    susieR,
     genetics.binaRies,
     knitr,
     rmarkdown,
@@ -39,4 +38,4 @@ Remotes:
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.1
+RoxygenNote: 7.3.1
