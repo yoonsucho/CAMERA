@@ -67,7 +67,9 @@ CAMERA$set("public", "pleiotropy", function(harmonised_dat = self$harmonised_dat
     lapply(unique(sig2$pops), \(pop2) {
       if(pop == pop2) return(NULL)
       sig3 <- subset(sig2, SNP %in% s$SNP & pops==pop2) %>%
-        dplyr::inner_join(s, ., by="SNP") %>% {
+        dplyr::inner_join(s, ., by="SNP") 
+        if(nrow(sig3) == 0) return(NULL)
+        sig3 <- sig3 %>% {
           prop_overlap(b_disc=.$dif.x, b_rep=.$dif.y, se_disc=.$dif.se.x, se_rep=.$dif.se.y, 0.05)
         }
       return(sig3$res %>% mutate(disc=pop, rep=pop2))
